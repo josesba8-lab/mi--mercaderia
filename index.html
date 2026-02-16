@@ -89,6 +89,35 @@
         .history-details { font-size: 13px; color: #555; line-height: 1.5; }
         .history-corte-name { font-weight: 700; font-size: 15px; color: #333; margin-bottom: 5px; }
         
+        /* Botones de navegación flotantes */
+        .scroll-nav {
+            position: fixed;
+            right: 15px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        .scroll-nav button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: none;
+            background: #667eea;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .scroll-nav button:active {
+            background: #764ba2;
+            transform: scale(0.95);
+        }
+        
         .corte-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e9ecef; }
         .corte-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .corte-name { font-weight: 700; font-size: 16px; color: #333; }
@@ -219,6 +248,12 @@
             </div>
 
             <div class="content">
+                <!-- Botones de navegación flotantes -->
+                <div class="scroll-nav">
+                    <button onclick="scrollToTop()" title="Ir arriba">▲</button>
+                    <button onclick="scrollToBottom()" title="Ir abajo">▼</button>
+                </div>
+                
                 <div id="cortes" class="section active">
                     <div class="section-tabs">
                         <button class="section-tab active" onclick="showCorteTab('nuevo', event)">Nuevo</button>
@@ -496,6 +531,16 @@
 
         function isAdmin() {
             return currentUser && currentUser.rol === 'admin';
+        }
+
+        function scrollToTop() {
+            var content = document.querySelector('.content');
+            content.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function scrollToBottom() {
+            var content = document.querySelector('.content');
+            content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
         }
 
         function showLoginTab(tab, evt) {
