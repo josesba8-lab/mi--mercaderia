@@ -8,6 +8,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Control de Mercadería</title>
     <link rel="manifest" href="manifest.json">
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyCSinxo0bAJYS1UVwcbhhjs1G3jOt_FGYs",
+            authDomain: "mercaderia-app-2165c.firebaseapp.com",
+            databaseURL: "https://mercaderia-app-2165c-default-rtdb.firebaseio.com",
+            projectId: "mercaderia-app-2165c",
+            storageBucket: "mercaderia-app-2165c.firebasestorage.app",
+            messagingSenderId: "1005729887792",
+            appId: "1:1005729887792:web:200777b934bf7b27e65ff5"
+        };
+        firebase.initializeApp(firebaseConfig);
+        var db = firebase.firestore();
+        db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
+            if (err.code == 'failed-precondition') { console.log('Persistence failed: multiple tabs open'); }
+            else if (err.code == 'unimplemented') { console.log('Persistence not available in this browser'); }
+        });
+    </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
         html, body { height: 100%; touch-action: pan-y; }
@@ -574,6 +593,7 @@
                 currentUser = user;
                 localStorage.setItem('currentUser', JSON.stringify(user));
                 showMainApp();
+                setupRealtimeSync();
             } else {
                 document.getElementById('loginError').classList.add('show');
             }
@@ -645,6 +665,7 @@
             if (saved) {
                 currentUser = JSON.parse(saved);
                 showMainApp();
+                setupRealtimeSync();
             }
         }
 
@@ -1560,10 +1581,56 @@
             alert('Exportación completada');
         }
 
+        var isOnline = navigator.onLine;
+        var pendingSync = false;
+        var unsubscribe = null;
+
+        function setupRealtimeSync() {
+            if (!isOnline) return;
+            if (unsubscribe) unsubscribe();
+            
+            unsubscribe = db.collection('data').doc('appData').onSnapshot(function(doc) {
+                if (!doc.exists) return;
+                var data = doc.data();
+                var localCortes = JSON.stringify(cortes);
+                var localTalleres = JSON.stringify(talleres);
+                var localTransacciones = JSON.stringify(transacciones);
+                
+                if (localCortes !== JSON.stringify(data.cortes) ||
+                    localTalleres !== JSON.stringify(data.talleres) ||
+                    localTransacciones !== JSON.stringify(data.transacciones)) {
+                    
+                    cortes = data.cortes || [];
+                    talleres = data.talleres || [];
+                    transacciones = data.transacciones || [];
+                    
+                    localStorage.setItem('cortes', JSON.stringify(cortes));
+                    localStorage.setItem('talleres', JSON.stringify(talleres));
+                    localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                    
+                    if (typeof renderPendientes === 'function') renderPendientes();
+                    if (typeof renderHistorial === 'function') renderHistorial();
+                    if (typeof renderTalleres === 'function') renderTalleres();
+                    if (typeof updatePendientesBadge === 'function') updatePendientesBadge();
+                    if (typeof updateTallerSelects === 'function') updateTallerSelects();
+                }
+            }, function(err) { console.log('Realtime sync error:', err); });
+        }
+
         function saveData() {
             localStorage.setItem('cortes', JSON.stringify(cortes));
             localStorage.setItem('talleres', JSON.stringify(talleres));
             localStorage.setItem('transacciones', JSON.stringify(transacciones));
+            if (isOnline) {
+                db.collection('data').doc('appData').set({
+                    cortes: cortes,
+                    talleres: talleres,
+                    transacciones: transacciones,
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function(err) { console.log('Error saving to Firebase:', err); });
+            } else {
+                pendingSync = true;
+            }
         }
 
         function loadData() {
@@ -1573,7 +1640,36 @@
             if (savedCortes) cortes = JSON.parse(savedCortes);
             if (savedTalleres) talleres = JSON.parse(savedTalleres);
             if (savedTransacciones) transacciones = JSON.parse(savedTransacciones);
+            
+            if (isOnline) {
+                db.collection('data').doc('appData').get().then(function(doc) {
+                    if (doc.exists) {
+                        var data = doc.data();
+                        if (data.cortes) cortes = data.cortes;
+                        if (data.talleres) talleres = data.talleres;
+                        if (data.transacciones) transacciones = data.transacciones;
+                        localStorage.setItem('cortes', JSON.stringify(cortes));
+                        localStorage.setItem('talleres', JSON.stringify(talleres));
+                        localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                        if (typeof renderPendientes === 'function') renderPendientes();
+                        if (typeof renderHistorial === 'function') renderHistorial();
+                        if (typeof renderTalleres === 'function') renderTalleres();
+                    }
+                }).catch(function(err) { console.log('Error loading from Firebase:', err); });
+            }
         }
+
+        window.addEventListener('online', function() {
+            isOnline = true;
+            if (pendingSync) {
+                saveData();
+                pendingSync = false;
+            }
+        });
+        
+        window.addEventListener('offline', function() {
+            isOnline = false;
+        });
 
         checkSession();
     </script>
