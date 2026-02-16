@@ -10,9 +10,22 @@
     <link rel="manifest" href="manifest.json">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        html, body { height: 100%; overflow: hidden; }
+        html, body { height: 100%; touch-action: pan-y; }
         body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0; }
-        .app-container { max-width: 100%; height: 100vh; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        
+        /* Scrollbar personalizada */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #667eea; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #764ba2; }
+        
+        body { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            padding: 0; 
+            overscroll-behavior: none;
+        }
+        
+        .app-container { max-width: 100%; height: 100vh; display: flex; flex-direction: column; background: white; }
         
         .login-container { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 30px; }
         .login-logo { text-align: center; margin-bottom: 30px; }
@@ -35,7 +48,7 @@
         .nav-btn.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
         .nav-icon { font-size: 20px; }
         
-        .content { flex: 1; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .content { flex: 1; padding: 15px; overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
         .section { display: none; }
         .section.active { display: block; }
         h2 { font-size: 18px; margin-bottom: 15px; color: #333; }
@@ -856,6 +869,10 @@
         }
 
         function eliminarCorteRetirado(corteId) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede eliminar cortes');
+                return;
+            }
             if (!confirm('¿Está seguro de eliminar este corte?')) return;
             cortes = cortes.filter(function(c) { return c.id !== corteId; });
             saveData();
@@ -903,6 +920,10 @@
         var corteIdEditandoRetiro = null;
 
         function openEditRetiroModal(corteId) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede editarretiros');
+                return;
+            }
             corteIdEditandoRetiro = corteId;
             var corte = cortes.find(function(c) { return c.id === corteId; });
             if (!corte) return;
@@ -920,6 +941,10 @@
         }
 
         function confirmarEditRetiro() {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede editar retiros');
+                return;
+            }
             var quien = document.getElementById('editRetiroQuien').value.trim();
             var notas = document.getElementById('editRetiroNotas').value.trim();
             var pagado = document.getElementById('editRetiroPagado').checked;
@@ -1148,6 +1173,10 @@
         }
 
         function guardarEdicion() {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede editar cortes');
+                return;
+            }
             var nombre = document.getElementById('editCorteNombre').value.trim();
             if (!nombre) { alert('Ingrese el nombre del corte'); return; }
             if (coloresEditando.length === 0) { alert('Agregue al menos un color'); return; }
@@ -1173,6 +1202,10 @@
         }
 
         function eliminarCorte() {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede eliminar cortes');
+                return;
+            }
             if (!confirm('¿Está seguro de eliminar este corte?')) return;
             cortes = cortes.filter(function(c) { return c.id !== corteIdEditando; });
             saveData();
@@ -1240,6 +1273,10 @@
         }
 
         function agregarTaller() {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede agregar talleres');
+                return;
+            }
             var nombre = document.getElementById('nuevoTaller').value.trim();
             if (!nombre) { alert('Ingrese el nombre del taller'); return; }
             if (talleres.some(function(t) { return t.nombre.toLowerCase() === nombre.toLowerCase(); })) { alert('Este taller ya existe'); return; }
@@ -1270,11 +1307,19 @@
         }
 
         function toggleTaller(id) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede modificar talleres');
+                return;
+            }
             var taller = talleres.find(function(t) { return t.id === id; });
             if (taller) { taller.activo = !taller.activo; saveData(); renderTalleres(); }
         }
 
         function eliminarTaller(id) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede eliminar talleres');
+                return;
+            }
             if (confirm('¿Eliminar este taller?')) {
                 talleres = talleres.filter(function(t) { return t.id !== id; });
                 saveData();
@@ -1409,6 +1454,10 @@
         }
 
         function eliminarTransaccion(index) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede eliminar transacciones');
+                return;
+            }
             if (!confirm('¿Está seguro de eliminar esta transacción del historial?')) return;
             transacciones.splice(index, 1);
             saveData();
