@@ -1,0 +1,1487 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Control de Mercadería</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        html, body { height: 100%; overflow: hidden; }
+        body { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0; }
+        .app-container { max-width: 100%; height: 100vh; display: flex; flex-direction: column; background: white; overflow: hidden; }
+        
+        .login-container { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 30px; }
+        .login-logo { text-align: center; margin-bottom: 30px; }
+        .login-logo h1 { font-size: 28px; color: #667eea; margin-bottom: 10px; }
+        .login-logo p { color: #666; font-size: 14px; }
+        .login-form { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .login-form h2 { text-align: center; margin-bottom: 20px; color: #333; }
+        .login-tabs { display: flex; margin-bottom: 20px; border-bottom: 2px solid #eee; }
+        .login-tab { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: 600; color: #666; }
+        .login-tab.active { color: #667eea; border-bottom: 2px solid #667eea; margin-bottom: -2px; }
+        
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; text-align: center; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 18px; }
+        .user-info { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 35px; height: 35px; border-radius: 50%; background: white; color: #667eea; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
+        .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+        
+        .nav { display: flex; background: #f5f5f5; border-bottom: 1px solid #ddd; }
+        .nav-btn { flex: 1; padding: 14px 10px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: #666; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .nav-btn.active { background: white; color: #667eea; border-bottom: 3px solid #667eea; }
+        .nav-icon { font-size: 20px; }
+        
+        .content { flex: 1; padding: 15px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .section { display: none; }
+        .section.active { display: block; }
+        h2 { font-size: 18px; margin-bottom: 15px; color: #333; }
+        h3 { font-size: 15px; margin: 20px 0 12px; color: #333; }
+        
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; color: #333; }
+        .form-group input, .form-group select { width: 100%; padding: 12px 14px; border: 2px solid #ddd; border-radius: 10px; font-size: 16px; background: white; }
+        
+        .color-item { display: flex; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 8px; margin-bottom: 8px; }
+        .color-preview { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; border: 2px solid #ddd; }
+        .color-name { flex: 1; font-size: 14px; }
+        .color-qty { font-weight: 700; color: #667eea; margin-right: 10px; }
+        .add-color-btn { width: 100%; padding: 12px; border: 2px dashed #667eea; border-radius: 10px; background: transparent; color: #667eea; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+        
+        .multiplier-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-bottom: 12px; }
+        .multiplier-btn { padding: 14px 10px; border: 2px solid #ddd; border-radius: 10px; cursor: pointer; font-size: 16px; font-weight: 700; background: white; }
+        .multiplier-btn.selected { background: #667eea; color: white; border-color: #667eea; }
+        
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 10px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-secondary { background: #6c757d; color: white; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-small { padding: 8px 12px; font-size: 12px; width: auto; margin-top: 0; }
+        
+        .summary { background: #f0f4ff; padding: 12px; border-radius: 10px; margin: 12px 0; border: 1px solid #d0d7de; }
+        .summary-item { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+        .summary-item:last-child { font-weight: 700; font-size: 16px; color: #667eea; border-top: 1px solid #ddd; margin-top: 6px; padding-top: 8px; }
+        
+        .history-item { background: #f8f9fa; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e9ecef; }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .history-type { font-weight: 700; padding: 4px 10px; border-radius: 5px; font-size: 11px; }
+        .type-corte { background: #667eea; color: white; }
+        .type-entrega { background: #28a745; color: white; }
+        .type-retiro { background: #ff9800; color: white; }
+        .history-date { font-size: 11px; color: #888; }
+        .history-details { font-size: 13px; color: #555; line-height: 1.5; }
+        .history-corte-name { font-weight: 700; font-size: 15px; color: #333; margin-bottom: 5px; }
+        
+        .corte-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e9ecef; }
+        .corte-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .corte-name { font-weight: 700; font-size: 16px; color: #333; }
+        .corte-status { font-size: 11px; padding: 3px 8px; border-radius: 5px; font-weight: 600; }
+        .corte-status.pendiente { background: #ffc107; color: #333; }
+        .corte-status.enviado { background: #667eea; color: white; }
+        .corte-status.retirado { background: #28a745; color: white; }
+        .corte-colors { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+        .corte-color-tag { display: flex; align-items: center; padding: 4px 8px; background: #f0f0f0; border-radius: 15px; font-size: 12px; }
+        .corte-color-dot { width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; border: 1px solid #ddd; }
+        .corte-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        
+        .taller-item { background: white; padding: 12px; border-radius: 10px; margin-bottom: 10px; border: 1px solid #e9ecef; }
+        .taller-header { display: flex; justify-content: space-between; align-items: center; }
+        .taller-name { font-weight: 700; font-size: 16px; }
+        .taller-badge { font-size: 11px; padding: 3px 8px; border-radius: 5px; font-weight: 600; }
+        .taller-badge.active { background: #28a745; color: white; }
+        .taller-badge.inactive { background: #6c757d; color: white; }
+        .taller-actions { display: flex; gap: 8px; margin-top: 10px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 15px; padding: 20px; width: 100%; max-width: 400px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-title { font-size: 18px; font-weight: 700; }
+        .modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: #666; }
+        
+        .modal-colors { max-height: 200px; overflow-y: auto; margin-bottom: 15px; }
+        .color-row { display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #eee; gap: 8px; }
+        .color-row input[type="color"] { width: 40px; height: 40px; border: none; border-radius: 8px; cursor: pointer; padding: 0; }
+        .color-row input[type="text"] { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+        .color-row input[type="number"] { width: 70px; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
+        .color-row .remove-color { background: #dc3545; color: white; border: none; padding: 8px 12px; border-radius: 5px; cursor: pointer; }
+        
+        .section-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
+        .section-tab { flex: 1; padding: 10px; border: 2px solid #ddd; border-radius: 8px; background: white; cursor: pointer; font-weight: 600; font-size: 13px; color: #666; }
+        .section-tab.active { border-color: #667eea; color: #667eea; background: #f0f4ff; }
+        
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 8px; }
+        .badge-warning { background: #fff3cd; color: #856404; }
+        
+        .btn-detail { background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: 8px; }
+        .history-colors { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; }
+        .history-color-item { display: flex; align-items: center; padding: 5px 0; font-size: 13px; }
+        .history-color-dot { width: 18px; height: 18px; border-radius: 50%; margin-right: 10px; border: 1px solid #ccc; }
+        
+        .empty-state { text-align: center; padding: 30px; color: #999; font-size: 14px; }
+        .error-msg { color: #dc3545; font-size: 12px; margin-top: 5px; display: none; }
+        .error-msg.show { display: block; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div id="loginSection" class="login-container">
+            <div class="login-logo">
+                <h1>Control de Mercadería</h1>
+                <p>Gestión de cortes y entregas</p>
+            </div>
+            <div class="login-form">
+                <div class="login-tabs">
+                    <div class="login-tab active" onclick="showLoginTab('login', event)">Iniciar Sesión</div>
+                    <div class="login-tab" onclick="showLoginTab('register', event)">Registrarse</div>
+                </div>
+                <div id="loginForm">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="loginUsuario" placeholder="Ingrese usuario" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="loginPassword" placeholder="Ingrese contraseña">
+                    </div>
+                    <p id="loginError" class="error-msg">Usuario o contraseña incorrectos</p>
+                    <button class="btn btn-primary" onclick="login()">Iniciar Sesión</button>
+                </div>
+                <div id="registerForm" style="display: none;">
+                    <div class="form-group">
+                        <label>Usuario</label>
+                        <input type="text" id="registerUsuario" placeholder="Crear usuario" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Nombre Completo</label>
+                        <input type="text" id="registerNombre" placeholder="Tu nombre" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label>Rol</label>
+                        <select id="registerRol">
+                            <option value="usuario">Usuario (solo cargar)</option>
+                            <option value="admin">Admin (control total)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Contraseña</label>
+                        <input type="password" id="registerPassword" placeholder="Crear contraseña">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Contraseña</label>
+                        <input type="password" id="registerConfirm" placeholder="Confirmar contraseña">
+                    </div>
+                    <p id="registerError" class="error-msg"></p>
+                    <button class="btn btn-primary" onclick="register()">Registrarse</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="mainApp" class="hidden">
+            <div class="header">
+                <h1>Control de Mercadería</h1>
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <button class="logout-btn" onclick="logout()">Salir</button>
+                </div>
+            </div>
+            <div class="nav">
+                <button class="nav-btn active" onclick="showSection('cortes')">
+                    <span class="nav-icon">✂️</span>
+                    <span>Cortes</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('talleres')">
+                    <span class="nav-icon">🏭</span>
+                    <span>Talleres</span>
+                </button>
+                <button class="nav-btn" onclick="showSection('historial')">
+                    <span class="nav-icon">📋</span>
+                    <span>Historial</span>
+                </button>
+            </div>
+
+            <div class="content">
+                <div id="cortes" class="section active">
+                    <div class="section-tabs">
+                        <button class="section-tab active" onclick="showCorteTab('nuevo', event)">Nuevo</button>
+                        <button class="section-tab" onclick="showCorteTab('pendientes', event)">
+                            Pendientes
+                            <span id="pendientesBadge" class="badge badge-warning" style="display: none;">0</span>
+                        </button>
+                        <button class="section-tab" onclick="showCorteTab('retirados', event)">
+                            Retirados
+                            <span id="retiradosBadge" class="badge badge-success" style="display: none;">0</span>
+                        </button>
+                    </div>
+
+                    <div id="nuevoCorte">
+                        <h2>Nuevo Corte</h2>
+                        <div class="form-group">
+                            <label>Operario:</label>
+                            <input type="text" id="corteOperario" placeholder="Nombre del operario" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre del Corte:</label>
+                            <input type="text" id="corteNombre" placeholder="Ej: Corte Invierno 2024" autocomplete="off">
+                        </div>
+                        <div class="form-group">
+                            <label>Colores del Corte:</label>
+                            <div id="coloresCorte"></div>
+                            <button class="add-color-btn" onclick="openColorModal()">+ Agregar Color</button>
+                        </div>
+                        <div class="summary" id="corteSummary" style="display: none;">
+                            <div class="summary-item"><span>Subtotal:</span><span id="summarySubtotal">0</span></div>
+                            <div class="form-group" style="margin-top:10px">
+                                <label>Multiplicador:</label>
+                                <div class="multiplier-grid">
+                                    <button class="multiplier-btn" onclick="selectMultiplier(1, event)">1x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(2, event)">2x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(3, event)">3x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(4, event)">4x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(5, event)">5x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(6, event)">6x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(7, event)">7x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(8, event)">8x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(9, event)">9x</button>
+                                    <button class="multiplier-btn" onclick="selectMultiplier(10, event)">10x</button>
+                                </div>
+                            </div>
+                            <div class="summary-item"><span>Total Final:</span><span id="summaryTotal">0</span></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="registrarCorte()">Registrar Corte</button>
+                    </div>
+
+                    <div id="cortesPendientes" style="display: none;">
+                        <h2>Cortes Pendientes</h2>
+                        <div id="pendientesContainer">
+                            <div class="empty-state">No hay cortes pendientes</div>
+                        </div>
+                    </div>
+
+                    <div id="cortesRetirados" style="display: none;">
+                        <h2>Cortes Retirados</h2>
+                        <div id="retiradosContainer">
+                            <div class="empty-state">No hay cortes retirados</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="talleres" class="section">
+                    <h2>Talleres</h2>
+                    <div class="form-group" id="agregarTallerForm">
+                        <label>Nuevo Taller:</label>
+                        <div style="display: flex; gap: 10px;">
+                            <input type="text" id="nuevoTaller" placeholder="Nombre del taller" autocomplete="off" style="flex:1">
+                            <button class="btn btn-primary btn-small" onclick="agregarTaller()">Agregar</button>
+                        </div>
+                    </div>
+                    <div id="talleresContainer">
+                        <div class="empty-state">No hay talleres registrados</div>
+                    </div>
+                    <h3>Registrar Retiro</h3>
+                    <div class="form-group">
+                        <label>Corte:</label>
+                        <select id="corteParaRetirar">
+                            <option value="">Seleccionar corte</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha de Retiro:</label>
+                        <input type="datetime-local" id="fechaRetiro">
+                    </div>
+                    <button class="btn btn-secondary" onclick="registrarRetiro()">Registrar Retiro</button>
+                </div>
+
+                <div id="historial" class="section">
+                    <h2>Historial</h2>
+                    <div style="display:flex;gap:10px;margin-bottom:15px">
+                        <select id="filtroHistorial" onchange="filtrarHistorial()" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd">
+                            <option value="todos">Todos</option>
+                            <option value="corte">Corte</option>
+                            <option value="entrega">Enviado</option>
+                            <option value="retiro">Retirado</option>
+                        </select>
+                        <button class="btn btn-success btn-small" onclick="exportarExcel()" style="width:auto;padding:10px 15px">Exportar Excel</button>
+                    </div>
+                    <div id="historialContainer">
+                        <div class="empty-state">Sin transacciones</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="colorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Agregar Color</span>
+                <button class="modal-close" onclick="closeColorModal()">&times;</button>
+            </div>
+            <div class="modal-colors" id="modalColors"></div>
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                <input type="color" id="newColorPicker" value="#000000" style="width: 45px;height:45px;border:none;border-radius:8px;cursor:pointer">
+                <input type="text" id="newColorName" placeholder="Color" style="flex:1">
+                <input type="number" id="newColorCantidad" placeholder="Cantidad" min="1" value="1" style="width:80px">
+                <button onclick="addColorToCorte()" style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer;">+</button>
+            </div>
+            <button class="btn btn-primary" style="margin-top: 15px;" onclick="closeColorModal()">Listo</button>
+        </div>
+    </div>
+
+    <div id="envioModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Enviar a Taller</span>
+                <button class="modal-close" onclick="closeEnvioModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Corte:</label>
+                <input type="text" id="envioCorteName" disabled>
+            </div>
+            <div class="form-group">
+                <label>Seleccionar Taller:</label>
+                <select id="tallerSelect">
+                    <option value="">Seleccionar taller</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:10px">
+                    <input type="checkbox" id="envioPagado" style="width:20px;height:20px">
+                    <span>¿Pagado?</span>
+                </label>
+            </div>
+            <button class="btn btn-success" onclick="confirmarEnvio()">Confirmar Envío</button>
+        </div>
+    </div>
+
+    <div id="retiroModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Registrar Retiro</span>
+                <button class="modal-close" onclick="closeRetiroModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Corte:</label>
+                <input type="text" id="retiroCorteName" disabled>
+            </div>
+            <div class="form-group">
+                <label>¿Quién Controló?</label>
+                <input type="text" id="retiroQuien" placeholder="Nombre de quien controla">
+            </div>
+            <div class="form-group">
+                <label>Notas:</label>
+                <input type="text" id="retiroNotas" placeholder="Notas adicionales (opcional)">
+            </div>
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:10px">
+                    <input type="checkbox" id="retiroPagado" style="width:20px;height:20px">
+                    <span>¿Pagado?</span>
+                </label>
+            </div>
+            <button class="btn btn-success" onclick="confirmarRetiro()">Confirmar Retiro</button>
+        </div>
+    </div>
+
+    <div id="editRetiroModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Editar Retiro</span>
+                <button class="modal-close" onclick="closeEditRetiroModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Corte:</label>
+                <input type="text" id="editRetiroCorteName" disabled>
+            </div>
+            <div class="form-group">
+                <label>¿Quién Controló?</label>
+                <input type="text" id="editRetiroQuien" placeholder="Nombre de quien controla">
+            </div>
+            <div class="form-group">
+                <label>Notas:</label>
+                <input type="text" id="editRetiroNotas" placeholder="Notas adicionales (opcional)">
+            </div>
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:10px">
+                    <input type="checkbox" id="editRetiroPagado" style="width:20px;height:20px">
+                    <span>¿Pagado?</span>
+                </label>
+            </div>
+            <button class="btn btn-primary" onclick="confirmarEditRetiro()">Guardar Cambios</button>
+        </div>
+    </div>
+
+    <div id="detalleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Detalles del Corte</span>
+                <button class="modal-close" onclick="closeDetalleModal()">&times;</button>
+            </div>
+            <div id="detalleContenido"></div>
+        </div>
+    </div>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Editar Corte</span>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Nombre del Corte:</label>
+                <input type="text" id="editCorteNombre">
+            </div>
+            <div class="form-group">
+                <label>Multiplicador:</label>
+                <div class="multiplier-grid" id="editMultiplierGrid"></div>
+            </div>
+            <div class="form-group">
+                <label>Colores:</label>
+                <div id="editColoresContainer"></div>
+                <button class="add-color-btn" onclick="openAddColorEdit()">+ Agregar Color</button>
+            </div>
+            <div id="editSummary" class="summary" style="display:none">
+                <div class="summary-item"><span>Total:</span><span id="editTotal">0</span></div>
+            </div>
+            <button class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
+            <button class="btn btn-danger" style="margin-top:8px" onclick="eliminarCorte()">Eliminar Corte</button>
+        </div>
+    </div>
+
+    <div id="editColorModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">Agregar Color</span>
+                <button class="modal-close" onclick="closeEditColorModal()">&times;</button>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
+                <input type="color" id="editNewColorPicker" value="#000000" style="width: 45px;height:45px;border:none;border-radius:8px;cursor:pointer">
+                <input type="text" id="editNewColorName" placeholder="Color" style="flex:1">
+                <input type="number" id="editNewColorCantidad" placeholder="Cantidad" min="1" value="1" style="width:80px">
+                <button onclick="addColorToEdit()" style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer;">+</button>
+            </div>
+            <button class="btn btn-primary" style="margin-top: 15px;" onclick="closeEditColorModal()">Listo</button>
+        </div>
+    </div>
+
+    <script>
+        var currentUser = null;
+        var users = [];
+        var cortes = [];
+        var talleres = [];
+        var transacciones = [];
+        var coloresCorte = [];
+        var selectedMultiplier = 1;
+        var corteIdParaEnviar = null;
+        var corteIdEditando = null;
+        var coloresEditando = [];
+        var multiplicadorEditando = 1;
+
+        function isAdmin() {
+            return currentUser && currentUser.rol === 'admin';
+        }
+
+        function showLoginTab(tab, evt) {
+            var tabs = document.querySelectorAll('.login-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            (evt || event).target.classList.add('active');
+            if (tab === 'login') {
+                document.getElementById('loginForm').style.display = 'block';
+                document.getElementById('registerForm').style.display = 'none';
+            } else {
+                document.getElementById('loginForm').style.display = 'none';
+                document.getElementById('registerForm').style.display = 'block';
+            }
+        }
+
+        function loadUsers() {
+            var saved = localStorage.getItem('users');
+            if (saved) { users = JSON.parse(saved); }
+        }
+
+        function saveUsers() {
+            localStorage.setItem('users', JSON.stringify(users));
+        }
+
+        function login() {
+            var usuario = document.getElementById('loginUsuario').value.trim();
+            var password = document.getElementById('loginPassword').value;
+            loadUsers();
+            var user = users.find(function(u) { return u.usuario === usuario && u.password === password; });
+            if (user) {
+                currentUser = user;
+                localStorage.setItem('currentUser', JSON.stringify(user));
+                showMainApp();
+            } else {
+                document.getElementById('loginError').classList.add('show');
+            }
+        }
+
+        function register() {
+            var usuario = document.getElementById('registerUsuario').value.trim();
+            var nombre = document.getElementById('registerNombre').value.trim();
+            var rol = document.getElementById('registerRol').value;
+            var password = document.getElementById('registerPassword').value;
+            var confirm = document.getElementById('registerConfirm').value;
+            var errorEl = document.getElementById('registerError');
+            loadUsers();
+            if (!usuario || !nombre || !password) {
+                errorEl.textContent = 'Complete todos los campos';
+                errorEl.classList.add('show');
+                return;
+            }
+            if (password !== confirm) {
+                errorEl.textContent = 'Las contraseñas no coinciden';
+                errorEl.classList.add('show');
+                return;
+            }
+            if (users.some(function(u) { return u.usuario === usuario; })) {
+                errorEl.textContent = 'El usuario ya existe';
+                errorEl.classList.add('show');
+                return;
+            }
+            var newUser = { usuario: usuario, nombre: nombre, password: password, rol: rol };
+            users.push(newUser);
+            saveUsers();
+            currentUser = newUser;
+            localStorage.setItem('currentUser', JSON.stringify(newUser));
+            showMainApp();
+        }
+
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('currentUser');
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginUsuario').value = '';
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginError').classList.remove('show');
+        }
+
+        function showMainApp() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            document.getElementById('userAvatar').textContent = currentUser.nombre.charAt(0).toUpperCase();
+            document.getElementById('operarioActual').textContent = currentUser.nombre || currentUser.usuario;
+            
+            var agregarTallerForm = document.getElementById('agregarTallerForm');
+            if (agregarTallerForm) {
+                agregarTallerForm.style.display = isAdmin() ? 'block' : 'none';
+            }
+            
+            loadData();
+            renderColoresCorte();
+            renderTalleres();
+            renderHistorial();
+            updatePendientesBadge();
+            updateTallerSelects();
+            renderPendientes();
+        }
+
+        function checkSession() {
+            var saved = localStorage.getItem('currentUser');
+            if (saved) {
+                currentUser = JSON.parse(saved);
+                showMainApp();
+            }
+        }
+
+        function showSection(sectionId, evt) {
+            document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+            document.querySelectorAll('.nav-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.getElementById(sectionId).classList.add('active');
+            (evt || event).currentTarget.classList.add('active');
+            if (sectionId === 'talleres') {
+                updateTallerSelects();
+            }
+        }
+
+        function showCorteTab(tab, evt) {
+            document.querySelectorAll('.section-tab').forEach(function(t) { t.classList.remove('active'); });
+            (evt || event).currentTarget.classList.add('active');
+            if (tab === 'nuevo') {
+                document.getElementById('nuevoCorte').style.display = 'block';
+                document.getElementById('cortesPendientes').style.display = 'none';
+                document.getElementById('cortesRetirados').style.display = 'none';
+            } else if (tab === 'pendientes') {
+                document.getElementById('nuevoCorte').style.display = 'none';
+                document.getElementById('cortesPendientes').style.display = 'block';
+                document.getElementById('cortesRetirados').style.display = 'none';
+                renderPendientes();
+            } else if (tab === 'retirados') {
+                document.getElementById('nuevoCorte').style.display = 'none';
+                document.getElementById('cortesPendientes').style.display = 'none';
+                document.getElementById('cortesRetirados').style.display = 'block';
+                renderRetirados();
+            }
+        }
+
+        function openColorModal() {
+            document.getElementById('colorModal').classList.add('active');
+            renderModalColors();
+        }
+
+        function closeColorModal() {
+            var color = document.getElementById('newColorPicker').value;
+            var nombre = document.getElementById('newColorName').value.trim();
+            var cantidad = parseInt(document.getElementById('newColorCantidad').value) || 1;
+            if (nombre) {
+                coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad });
+                document.getElementById('newColorName').value = '';
+                document.getElementById('newColorCantidad').value = '1';
+                renderModalColors();
+                renderColoresCorte();
+                updateSummary();
+            }
+            document.getElementById('colorModal').classList.remove('active');
+        }
+
+        function renderModalColors() {
+            var container = document.getElementById('modalColors');
+            if (coloresCorte.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 20px;">Sin colores agregados</div>';
+                return;
+            }
+            var html = '';
+            coloresCorte.forEach(function(c, i) {
+                html += '<div class="color-row">' +
+                    '<input type="color" value="' + c.color + '" onchange="updateColor(' + i + ', \'color\', this.value)">' +
+                    '<input type="text" value="' + c.nombre + '" placeholder="Nombre" onchange="updateColor(' + i + ', \'nombre\', this.value)">' +
+                    '<input type="number" value="' + c.cantidad + '" min="1" onchange="updateColor(' + i + ', \'cantidad\', this.value)">' +
+                    '<button class="remove-color" onclick="removeColor(' + i + ')">X</button></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function addColorToCorte() {
+            var color = document.getElementById('newColorPicker').value;
+            var nombre = document.getElementById('newColorName').value.trim();
+            var cantidad = parseInt(document.getElementById('newColorCantidad').value) || 1;
+            if (!nombre) { alert('Ingrese el nombre del color'); return; }
+            coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad });
+            document.getElementById('newColorName').value = '';
+            document.getElementById('newColorCantidad').value = '1';
+            renderModalColors();
+            renderColoresCorte();
+            updateSummary();
+        }
+
+        function updateColor(index, field, value) {
+            coloresCorte[index][field] = field === 'cantidad' ? parseInt(value) : value;
+            renderColoresCorte();
+            updateSummary();
+        }
+
+        function removeColor(index) {
+            coloresCorte.splice(index, 1);
+            renderModalColors();
+            renderColoresCorte();
+            updateSummary();
+        }
+
+        function renderColoresCorte() {
+            var container = document.getElementById('coloresCorte');
+            if (coloresCorte.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding: 15px;">Sin colores</div>';
+                return;
+            }
+            var html = '';
+            coloresCorte.forEach(function(c) {
+                html += '<div class="color-item">' +
+                    '<div class="color-preview" style="background: ' + c.color + '"></div>' +
+                    '<span class="color-name">' + c.nombre + ' (' + c.cantidad + ')</span>' +
+                    '<span class="color-qty">x' + selectedMultiplier + ' = ' + (c.cantidad * selectedMultiplier) + '</span></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function selectMultiplier(multiplier, evt) {
+            selectedMultiplier = multiplier;
+            document.querySelectorAll('.multiplier-btn').forEach(function(btn) { btn.classList.remove('selected'); });
+            (evt || event).currentTarget.classList.add('selected');
+            renderColoresCorte();
+            updateSummary();
+        }
+
+        function updateSummary() {
+            var summary = document.getElementById('corteSummary');
+            var nombre = document.getElementById('corteNombre').value.trim();
+            if (coloresCorte.length > 0 && nombre) {
+                summary.style.display = 'block';
+                var subtotal = coloresCorte.reduce(function(sum, c) { return sum + c.cantidad; }, 0);
+                var total = subtotal * selectedMultiplier;
+                document.getElementById('summarySubtotal').textContent = subtotal + ' unidades';
+                document.getElementById('summaryTotal').textContent = total + ' unidades';
+            } else {
+                summary.style.display = 'none';
+            }
+        }
+
+        document.getElementById('corteNombre').addEventListener('input', updateSummary);
+
+        function registrarCorte() {
+            var nombre = document.getElementById('corteNombre').value.trim();
+            var operarioManual = document.getElementById('corteOperario').value.trim();
+            var operario = operarioManual || currentUser.usuario;
+            if (!nombre) { alert('Ingrese el nombre del corte'); return; }
+            if (coloresCorte.length === 0) { alert('Agregue al menos un color'); return; }
+
+            var numCorte = ((cortes.length) % 100) + 1;
+            var colors = coloresCorte.map(function(c) {
+                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * selectedMultiplier };
+            });
+            var total = colors.reduce(function(sum, c) { return sum + c.cantidadFinal; }, 0);
+            var fechaActual = new Date().toLocaleString();
+
+            var corte = {
+                id: Date.now(),
+                numCorte: numCorte,
+                nombre: nombre,
+                colors: colors,
+                multiplicador: selectedMultiplier,
+                total: total,
+                estado: 'pendiente',
+                taller: null,
+                fechaEnvio: null,
+                fechaRetiro: null,
+                usuario: operario,
+                date: fechaActual
+            };
+            cortes.push(corte);
+
+            var transactionCorte = {
+                type: 'corte',
+                numCorte: numCorte,
+                corteNombre: nombre,
+                colors: JSON.parse(JSON.stringify(colors)),
+                multiplicador: selectedMultiplier,
+                total: total,
+                usuario: operario,
+                date: fechaActual
+            };
+            transacciones.unshift(transactionCorte);
+
+            saveData();
+            alert('Corte "' + nombre + '" registrado: ' + total + ' unidades');
+
+            document.getElementById('corteNombre').value = '';
+            document.getElementById('corteOperario').value = '';
+            coloresCorte = [];
+            renderColoresCorte();
+            updateSummary();
+            updatePendientesBadge();
+            renderHistorial();
+            renderPendientes();
+        }
+
+        function renderPendientes() {
+            var container = document.getElementById('pendientesContainer');
+            var pendientes = cortes.filter(function(c) { return c.estado === 'pendiente'; });
+            var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
+            var todos = pendientes.concat(enviados);
+
+            if (todos.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay cortes pendientes</div>';
+                return;
+            }
+
+            var html = '';
+            todos.forEach(function(c) {
+                var numCorte = c.numCorte || 1;
+                var statusClass = c.estado === 'pendiente' ? 'pendiente' : 'enviado';
+                var statusText = c.estado === 'pendiente' ? 'Pendiente' : 'Enviado a ' + c.taller;
+                var coloresHtml = '';
+                c.colors.forEach(function(cc) {
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + '</span>';
+                });
+                var coloresDetalle = c.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ');
+                var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
+                var btnEditar = (c.estado === 'pendiente' && isAdmin()) ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">Editar</button>' : '';
+                var btnEnviar = c.estado === 'pendiente' ? '<button class="btn btn-success btn-small" style="margin-top:8px" onclick="openEnvioModal(' + c.id + ')">Enviar</button>' : '';
+                var btnRetirar = c.estado === 'enviado' ? '<button class="btn btn-secondary btn-small" style="margin-top:8px" onclick="openRetiroModal(' + c.id + ')">Retirar</button>' : '';
+                
+                var infoEntrega = '';
+                if (c.estado === 'enviado') {
+                    var statusPago = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
+                    infoEntrega = '<br><span class="history-date">Entregó: ' + (c.quienEntrega || currentUser.usuario) + ' ' + statusPago + '</span>';
+                }
+
+                html += '<div class="corte-item">' +
+                    '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span><span class="corte-status ' + statusClass + '">' + statusText + '</span></div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Operario: ' + c.usuario + '</span>' + infoEntrega + '</div>' +
+                    '<div class="corte-colors">' + coloresHtml + '</div>' +
+                    '<div class="corte-actions">' + btnEditar + btnEnviar + btnRetirar + '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function renderRetirados() {
+            var container = document.getElementById('retiradosContainer');
+            var retirados = cortes.filter(function(c) { return c.estado === 'retirado'; });
+
+            if (retirados.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay cortes retirados</div>';
+                return;
+            }
+
+            var html = '';
+            retirados.forEach(function(c) {
+                var numCorte = c.numCorte || 1;
+                var coloresHtml = '';
+                c.colors.forEach(function(cc) {
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + '</span>';
+                });
+                var coloresDetalle = c.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ');
+                var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
+                var statusPagado = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PENDIENTE</span>';
+                var infoExtra = '';
+                if (c.quienEntrega) infoExtra += '<br>Entregó: ' + c.quienEntrega;
+                if (c.quienRetiro) infoExtra += '<br>Controló: ' + c.quienRetiro;
+                if (c.notas) infoExtra += '<br>Notas: ' + c.notas;
+
+                var btnEditarRetiro = isAdmin() ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditRetiroModal(' + c.id + ')">Editar</button>' : '';
+                var btnEliminarRetiro = isAdmin() ? '<button class="btn btn-small btn-danger" style="margin-top:8px" onclick="eliminarCorteRetirado(' + c.id + ')">Eliminar</button>' : '';
+
+                html += '<div class="corte-item">' +
+                    '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span>' + statusPagado + '</div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Retirado: ' + (c.fechaRetiro || 'Sin fecha') + '</span><br>Taller: ' + c.taller + infoExtra + '<br><span class="history-date">Operario: ' + c.usuario + '</span></div>' +
+                    '<div class="corte-colors">' + coloresHtml + '</div>' +
+                    '<div class="corte-actions">' + btnEditarRetiro + ' ' + btnEliminarRetiro + '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function eliminarCorteRetirado(corteId) {
+            if (!confirm('¿Está seguro de eliminar este corte?')) return;
+            cortes = cortes.filter(function(c) { return c.id !== corteId; });
+            saveData();
+            updatePendientesBadge();
+            renderRetirados();
+            renderHistorial();
+            alert('Corte eliminado');
+        }
+
+        function openEnvioModal(corteId) {
+            corteIdParaEnviar = corteId;
+            var corte = cortes.find(function(c) { return c.id === corteId; });
+            document.getElementById('envioCorteName').value = corte ? corte.nombre : '';
+            var tallerSelect = document.getElementById('tallerSelect');
+            var options = '<option value="">Seleccionar taller</option>';
+            talleres.filter(function(t) { return t.activo; }).forEach(function(t) {
+                options += '<option value="' + t.nombre + '">' + t.nombre + '</option>';
+            });
+            tallerSelect.innerHTML = options;
+            document.getElementById('envioModal').classList.add('active');
+        }
+
+        function closeEnvioModal() {
+            document.getElementById('envioModal').classList.remove('active');
+            corteIdParaEnviar = null;
+        }
+
+        var corteIdParaRetirar = null;
+
+        function openRetiroModal(corteId) {
+            corteIdParaRetirar = corteId;
+            var corte = cortes.find(function(c) { return c.id === corteId; });
+            document.getElementById('retiroCorteName').value = corte ? corte.nombre : '';
+            document.getElementById('retiroQuien').value = '';
+            document.getElementById('retiroNotas').value = '';
+            document.getElementById('retiroPagado').checked = false;
+            document.getElementById('retiroModal').classList.add('active');
+        }
+
+        function closeRetiroModal() {
+            document.getElementById('retiroModal').classList.remove('active');
+            corteIdParaRetirar = null;
+        }
+
+        var corteIdEditandoRetiro = null;
+
+        function openEditRetiroModal(corteId) {
+            corteIdEditandoRetiro = corteId;
+            var corte = cortes.find(function(c) { return c.id === corteId; });
+            if (!corte) return;
+            
+            document.getElementById('editRetiroCorteName').value = corte.nombre;
+            document.getElementById('editRetiroQuien').value = corte.quienRetiro || '';
+            document.getElementById('editRetiroNotas').value = corte.notas || '';
+            document.getElementById('editRetiroPagado').checked = corte.pagado || false;
+            document.getElementById('editRetiroModal').classList.add('active');
+        }
+
+        function closeEditRetiroModal() {
+            document.getElementById('editRetiroModal').classList.remove('active');
+            corteIdEditandoRetiro = null;
+        }
+
+        function confirmarEditRetiro() {
+            var quien = document.getElementById('editRetiroQuien').value.trim();
+            var notas = document.getElementById('editRetiroNotas').value.trim();
+            var pagado = document.getElementById('editRetiroPagado').checked;
+            
+            var corte = cortes.find(function(c) { return c.id === corteIdEditandoRetiro; });
+            if (corte) {
+                corte.quienRetiro = quien;
+                corte.notas = notas;
+                corte.pagado = pagado;
+                
+                saveData();
+                closeEditRetiroModal();
+                alert('Cambios guardados');
+                renderRetirados();
+                renderHistorial();
+            }
+        }
+
+        function confirmarRetiro() {
+            var quien = document.getElementById('retiroQuien').value.trim();
+            var notas = document.getElementById('retiroNotas').value.trim();
+            var pagado = document.getElementById('retiroPagado').checked;
+            
+            if (!quien) { alert('Ingrese quien retira el corte'); return; }
+            
+            var corte = cortes.find(function(c) { return c.id === corteIdParaRetirar; });
+            if (corte) {
+                var fecha = new Date().toLocaleString();
+                corte.estado = 'retirado';
+                corte.fechaRetiro = fecha;
+                corte.quienRetiro = quien;
+                corte.notas = notas;
+                corte.pagado = pagado;
+                
+                var transaction = {
+                    type: 'retiro',
+                    numCorte: corte.numCorte,
+                    corteNombre: corte.nombre,
+                    colors: JSON.parse(JSON.stringify(corte.colors)),
+                    multiplicador: corte.multiplicador,
+                    taller: corte.taller,
+                    total: corte.total,
+                    quienRetiro: quien,
+                    notas: notas,
+                    pagado: pagado,
+                    fechaRetiro: fecha,
+                    usuario: corte.usuario,
+                    date: fecha
+                };
+                transacciones.unshift(transaction);
+                saveData();
+                closeRetiroModal();
+                alert('Retiro del corte "' + corte.nombre + '" registrado');
+                updatePendientesBadge();
+                renderPendientes();
+                renderRetirados();
+                renderHistorial();
+            }
+        }
+
+        function verDetalle(transaccion) {
+            var contenido = document.getElementById('detalleContenido');
+            console.log('verDetalle - transaccion:', transaccion);
+            
+            if (!transaccion) {
+                contenido.innerHTML = '<p>No hay detalles disponibles</p>';
+                document.getElementById('detalleModal').classList.add('active');
+                return;
+            }
+            
+            var multiplicador = transaccion.multiplicador || 1;
+            var coloresHtml = '';
+            
+            if (transaccion.colors && transaccion.colors.length > 0) {
+                transaccion.colors.forEach(function(c) {
+                    var cantidad = c.cantidad || 0;
+                    coloresHtml += '<div class="history-color-item">' +
+                        '<div class="history-color-dot" style="background: ' + (c.color || '#ccc') + '"></div>' +
+                        '<span>' + (c.nombre || 'Sin nombre') + '</span>' +
+                        '<span style="margin-left: auto; font-weight: bold; color: #667eea;">' + cantidad + ' x ' + multiplicador + ' = ' + (cantidad * multiplicador) + '</span></div>';
+                });
+            } else {
+                coloresHtml = '<p style="color:#999">No hay colores registrados</p>';
+            }
+            
+            var numCorte = transaccion.numCorte || '';
+            var statusPagado = '';
+            if (transaccion.type === 'entrega') {
+                statusPagado = transaccion.pagado ? '<p style="background:#28a745;color:white;padding:5px 10px;border-radius:5px;display:inline-block;margin-top:5px">PAGADO</p>' : '<p style="background:#dc3545;color:white;padding:5px 10px;border-radius:5px;display:inline-block;margin-top:5px">PENDIENTE</p>';
+            } else if (transaccion.type === 'retiro') {
+                statusPagado = transaccion.pagado ? '<p style="background:#28a745;color:white;padding:5px 10px;border-radius:5px;display:inline-block;margin-top:5px">PAGADO</p>' : '<p style="background:#dc3545;color:white;padding:5px 10px;border-radius:5px;display:inline-block;margin-top:5px">PENDIENTE</p>';
+            }
+            
+            var html = '<h3 style="margin-bottom: 10px;">#' + numCorte + ' - ' + transaccion.corteNombre + '</h3>' +
+                statusPagado +
+                '<p><strong>Total:</strong> ' + transaccion.total + ' unidades</p>' +
+                '<p><strong>Multiplicador:</strong> ' + multiplicador + 'x</p>' +
+                '<p><strong>Fecha:</strong> ' + transaccion.date + '</p>' +
+                (transaccion.usuario ? '<p><strong>Operario:</strong> ' + transaccion.usuario + '</p>' : '') +
+                '<div class="history-colors"><strong>Colores:</strong>' + coloresHtml + '</div>';
+            if (transaccion.taller) {
+                html += '<p><strong>Taller:</strong> ' + transaccion.taller + '</p>';
+            }
+            if (transaccion.quienEntrega) {
+                html += '<p><strong>Quién Entregó:</strong> ' + transaccion.quienEntrega + '</p>';
+            }
+            if (transaccion.quienRetiro) {
+                html += '<p><strong>Quién Controló:</strong> ' + transaccion.quienRetiro + '</p>';
+            }
+            if (transaccion.notas) {
+                html += '<p><strong>Notas:</strong> ' + transaccion.notas + '</p>';
+            }
+            if (transaccion.fechaRetiro) {
+                html += '<p><strong>Fecha Retiro:</strong> ' + transaccion.fechaRetiro + '</p>';
+            }
+            contenido.innerHTML = html;
+            document.getElementById('detalleModal').classList.add('active');
+        }
+
+        function closeDetalleModal() {
+            document.getElementById('detalleModal').classList.remove('active');
+        }
+
+        function openEditModal(corteId) {
+            var corte = cortes.find(function(c) { return c.id === corteId; });
+            if (!corte) return;
+            
+            corteIdEditando = corteId;
+            document.getElementById('editCorteNombre').value = corte.nombre;
+            multiplicadorEditando = corte.multiplicador;
+            coloresEditando = JSON.parse(JSON.stringify(corte.colors));
+            
+            renderEditMultiplier();
+            renderEditColores();
+            updateEditSummary();
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').classList.remove('active');
+            corteIdEditando = null;
+            coloresEditando = [];
+        }
+
+        function renderEditMultiplier() {
+            var container = document.getElementById('editMultiplierGrid');
+            var html = '';
+            for (var i = 1; i <= 10; i++) {
+                html += '<button class="multiplier-btn' + (i === multiplicadorEditando ? ' selected' : '') + '" onclick="selectEditMultiplier(' + i + ')">' + i + 'x</button>';
+            }
+            container.innerHTML = html;
+        }
+
+        function selectEditMultiplier(val) {
+            multiplicadorEditando = val;
+            renderEditMultiplier();
+            renderEditColores();
+            updateEditSummary();
+        }
+
+        function renderEditColores() {
+            var container = document.getElementById('editColoresContainer');
+            if (coloresEditando.length === 0) {
+                container.innerHTML = '<div class="empty-state" style="padding:15px">Sin colores</div>';
+                return;
+            }
+            var html = '';
+            coloresEditando.forEach(function(c, i) {
+                html += '<div class="color-item">' +
+                    '<div class="color-preview" style="background:' + c.color + '"></div>' +
+                    '<input type="text" value="' + c.nombre + '" onchange="updateEditColor(' + i + ', \'nombre\', this.value)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
+                    '<input type="number" value="' + c.cantidad + '" min="1" onchange="updateEditColor(' + i + ', \'cantidad\', this.value)" style="width:60px;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
+                    '<span style="font-weight:bold;color:#667eea">' + (c.cantidad * multiplicadorEditando) + '</span>' +
+                    '<button onclick="removeEditColor(' + i + ')" style="background:#dc3545;color:white;border:none;padding:8px 12px;border-radius:5px;cursor:pointer;margin-left:8px">X</button></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function updateEditColor(index, field, value) {
+            coloresEditando[index][field] = field === 'cantidad' ? parseInt(value) : value;
+            renderEditColores();
+            updateEditSummary();
+        }
+
+        function removeEditColor(index) {
+            coloresEditando.splice(index, 1);
+            renderEditColores();
+            updateEditSummary();
+        }
+
+        function updateEditSummary() {
+            var total = coloresEditando.reduce(function(sum, c) { return sum + (c.cantidad * multiplicadorEditando); }, 0);
+            document.getElementById('editTotal').textContent = total + ' unidades';
+            document.getElementById('editSummary').style.display = coloresEditando.length > 0 ? 'block' : 'none';
+        }
+
+        function openAddColorEdit() {
+            document.getElementById('editColorModal').classList.add('active');
+        }
+
+        function closeEditColorModal() {
+            var color = document.getElementById('editNewColorPicker').value;
+            var nombre = document.getElementById('editNewColorName').value.trim();
+            var cantidad = parseInt(document.getElementById('editNewColorCantidad').value) || 1;
+            if (nombre) {
+                coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad });
+                document.getElementById('editNewColorName').value = '';
+                document.getElementById('editNewColorCantidad').value = '1';
+                renderEditColores();
+                updateEditSummary();
+            }
+            document.getElementById('editColorModal').classList.remove('active');
+        }
+
+        function addColorToEdit() {
+            var color = document.getElementById('editNewColorPicker').value;
+            var nombre = document.getElementById('editNewColorName').value.trim();
+            var cantidad = parseInt(document.getElementById('editNewColorCantidad').value) || 1;
+            if (!nombre) { alert('Ingrese el nombre del color'); return; }
+            coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad });
+            document.getElementById('editNewColorName').value = '';
+            document.getElementById('editNewColorCantidad').value = '1';
+            renderEditColores();
+            updateEditSummary();
+            closeEditColorModal();
+        }
+
+        function guardarEdicion() {
+            var nombre = document.getElementById('editCorteNombre').value.trim();
+            if (!nombre) { alert('Ingrese el nombre del corte'); return; }
+            if (coloresEditando.length === 0) { alert('Agregue al menos un color'); return; }
+            
+            var corte = cortes.find(function(c) { return c.id === corteIdEditando; });
+            if (!corte) return;
+            
+            var colors = coloresEditando.map(function(c) {
+                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * multiplicadorEditando };
+            });
+            var total = colors.reduce(function(sum, c) { return sum + c.cantidadFinal; }, 0);
+            
+            corte.nombre = nombre;
+            corte.colors = colors;
+            corte.multiplicador = multiplicadorEditando;
+            corte.total = total;
+            
+            saveData();
+            closeEditModal();
+            renderPendientes();
+            renderHistorial();
+            alert('Corte actualizado');
+        }
+
+        function eliminarCorte() {
+            if (!confirm('¿Está seguro de eliminar este corte?')) return;
+            cortes = cortes.filter(function(c) { return c.id !== corteIdEditando; });
+            saveData();
+            closeEditModal();
+            updatePendientesBadge();
+            renderPendientes();
+            renderHistorial();
+            alert('Corte eliminado');
+        }
+
+        function confirmarEnvio() {
+            var taller = document.getElementById('tallerSelect').value;
+            var pagado = document.getElementById('envioPagado').checked;
+            if (!taller) { alert('Seleccione un taller'); return; }
+            var corte = cortes.find(function(c) { return c.id === corteIdParaEnviar; });
+            if (corte) {
+                var fechaActual = new Date().toLocaleString();
+                corte.estado = 'enviado';
+                corte.taller = taller;
+                corte.fechaEnvio = corte.fechaEnvio || fechaActual;
+                corte.pagado = pagado;
+                corte.quienEntrega = currentUser.usuario;
+                var transaction = {
+                    type: 'entrega',
+                    numCorte: corte.numCorte,
+                    corteNombre: corte.nombre,
+                    colors: JSON.parse(JSON.stringify(corte.colors)),
+                    multiplicador: corte.multiplicador,
+                    taller: taller,
+                    total: corte.total,
+                    usuario: corte.usuario,
+                    quienEntrega: currentUser.usuario,
+                    pagado: pagado,
+                    date: fechaActual
+                };
+                transacciones.unshift(transaction);
+                saveData();
+                closeEnvioModal();
+                document.getElementById('envioPagado').checked = false;
+                alert('Corte "' + corte.nombre + '" enviado a ' + taller);
+                updatePendientesBadge();
+                renderPendientes();
+                renderHistorial();
+            }
+        }
+
+        function updatePendientesBadge() {
+            var pendientes = cortes.filter(function(c) { return c.estado === 'pendiente' || c.estado === 'enviado'; }).length;
+            var badge = document.getElementById('pendientesBadge');
+            if (pendientes > 0) {
+                badge.textContent = pendientes;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+            
+            var retirados = cortes.filter(function(c) { return c.estado === 'retirado'; }).length;
+            var badgeR = document.getElementById('retiradosBadge');
+            if (retirados > 0) {
+                badgeR.textContent = retirados;
+                badgeR.style.display = 'inline-block';
+            } else {
+                badgeR.style.display = 'none';
+            }
+        }
+
+        function agregarTaller() {
+            var nombre = document.getElementById('nuevoTaller').value.trim();
+            if (!nombre) { alert('Ingrese el nombre del taller'); return; }
+            if (talleres.some(function(t) { return t.nombre.toLowerCase() === nombre.toLowerCase(); })) { alert('Este taller ya existe'); return; }
+            talleres.push({ id: Date.now(), nombre: nombre, activo: true });
+            saveData();
+            document.getElementById('nuevoTaller').value = '';
+            renderTalleres();
+        }
+
+        function renderTalleres() {
+            var container = document.getElementById('talleresContainer');
+            if (talleres.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay talleres registrados</div>';
+                return;
+            }
+            var html = '';
+            talleres.forEach(function(t) {
+                var btnAcciones = '';
+                if (isAdmin()) {
+                    btnAcciones = '<button class="btn btn-small btn-secondary" onclick="toggleTaller(' + t.id + ')">' + (t.activo ? 'Desactivar' : 'Activar') + '</button>' +
+                    '<button class="btn btn-small btn-danger" onclick="eliminarTaller(' + t.id + ')">Eliminar</button>';
+                }
+                html += '<div class="taller-item">' +
+                    '<div class="taller-header"><span class="taller-name">' + t.nombre + '</span><span class="taller-badge ' + (t.activo ? 'active' : 'inactive') + '">' + (t.activo ? 'Activo' : 'Inactivo') + '</span></div>' +
+                    '<div class="taller-actions">' + btnAcciones + '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function toggleTaller(id) {
+            var taller = talleres.find(function(t) { return t.id === id; });
+            if (taller) { taller.activo = !taller.activo; saveData(); renderTalleres(); }
+        }
+
+        function eliminarTaller(id) {
+            if (confirm('¿Eliminar este taller?')) {
+                talleres = talleres.filter(function(t) { return t.id !== id; });
+                saveData();
+                renderTalleres();
+            }
+        }
+
+        function updateTallerSelects() {
+            var corteRetirar = document.getElementById('corteParaRetirar');
+            var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
+            var options = '<option value="">Seleccionar corte</option>';
+            enviados.forEach(function(c) {
+                options += '<option value="' + c.id + '">' + c.nombre + ' - ' + c.taller + '</option>';
+            });
+            corteRetirar.innerHTML = options;
+        }
+
+        function registrarRetiroFromPendientes(corteId) {
+            openRetiroModal(corteId);
+        }
+
+        function registrarRetiro() {
+            var corteId = parseInt(document.getElementById('corteParaRetirar').value);
+            var fechaInput = document.getElementById('fechaRetiro').value;
+            if (!corteId) { alert('Seleccione un corte'); return; }
+            var corte = cortes.find(function(c) { return c.id === corteId; });
+            if (corte) {
+                var fechaRetiro = fechaInput ? new Date(fechaInput).toLocaleString() : new Date().toLocaleString();
+                corte.estado = 'retirado';
+                corte.fechaRetiro = fechaRetiro;
+                var transaction = {
+                    type: 'retiro',
+                    numCorte: corte.numCorte,
+                    corteNombre: corte.nombre,
+                    colors: JSON.parse(JSON.stringify(corte.colors)),
+                    multiplicador: corte.multiplicador,
+                    taller: corte.taller,
+                    total: corte.total,
+                    fechaRetiro: fechaRetiro,
+                    usuario: currentUser.usuario,
+                    date: fechaRetiro
+                };
+                transacciones.unshift(transaction);
+                saveData();
+                alert('Retiro del corte "' + corte.nombre + '" registrado');
+                document.getElementById('corteParaRetirar').value = '';
+                document.getElementById('fechaRetiro').value = '';
+                updatePendientesBadge();
+                updateTallerSelects();
+                renderHistorial();
+            }
+        }
+
+        function renderHistorial() {
+            var container = document.getElementById('historialContainer');
+            if (transacciones.length === 0) {
+                container.innerHTML = '<div class="empty-state">Sin transacciones</div>';
+                return;
+            }
+            
+            var filtro = document.getElementById('filtroHistorial') ? document.getElementById('filtroHistorial').value : 'todos';
+            var transaccionesFiltradas = transacciones.filter(function(t) {
+                return filtro === 'todos' || t.type === filtro;
+            });
+            
+            if (transaccionesFiltradas.length === 0) {
+                container.innerHTML = '<div class="empty-state">Sin transacciones</div>';
+                return;
+            }
+            
+            var html = '';
+            transacciones.forEach(function(t, index) {
+                if (filtro !== 'todos' && t.type !== filtro) { return; }
+                
+                var numCorte = t.numCorte;
+                if (!numCorte) {
+                    var corteOriginal = cortes.find(function(c) { return c.nombre === t.corteNombre && c.date === t.date; });
+                    if (corteOriginal) {
+                        numCorte = corteOriginal.numCorte;
+                    } else {
+                        numCorte = '';
+                    }
+                }
+                var typeClass = 'type-corte';
+                var typeText = 'CORTE';
+                if (t.type === 'entrega') { typeClass = 'type-entrega'; typeText = 'ENVIADO'; }
+                else if (t.type === 'retiro') { typeClass = 'type-retiro'; typeText = 'RETIRADO'; }
+
+                var details = '';
+                if (t.type === 'corte') {
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
+                        (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '') +
+                        '<br><button class="btn-detail" onclick=\'verDetalleHistorialById(' + JSON.stringify(t).replace(/'/g, "&#39;") + ')\'>Ver Detalle</button>';
+                } else if (t.type === 'entrega') {
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    var statusPago = t.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
+                    details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
+                        '<br>Taller: ' + t.taller +
+                        (t.quienEntrega ? '<br><span class="history-date">Entregó: ' + t.quienEntrega + ' ' + statusPago + '</span>' : (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '')) +
+                        '<br><button class="btn-detail" onclick=\'verDetalleHistorialById(' + JSON.stringify(t).replace(/'/g, "&#39;") + ')\'>Ver Detalle</button>';
+                } else if (t.type === 'retiro') {
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    var statusPago = t.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
+                    details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
+                        '<br>Taller: ' + t.taller + '<br>Controlado: ' + t.fechaRetiro + ' ' + statusPago +
+                        (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '') +
+                        '<br><button class="btn-detail" onclick=\'verDetalleHistorialById(' + JSON.stringify(t).replace(/'/g, "&#39;") + ')\'>Ver Detalle</button>';
+                }
+
+                var btnEliminarHistorial = isAdmin() ? '<button class="btn btn-small btn-danger" style="margin-top:10px" onclick="eliminarTransaccion(' + index + ')">Eliminar</button>' : '';
+
+                html += '<div class="history-item"><div class="history-header"><span class="history-type ' + typeClass + '">' + typeText + '</span><span class="history-date">' + t.date + '</span></div><div class="history-details">' + details + '</div>' + btnEliminarHistorial + '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function filtrarHistorial() {
+            renderHistorial();
+        }
+
+        function verDetalleHistorial(index) {
+            if (transacciones[index]) {
+                verDetalle(transacciones[index]);
+            }
+        }
+
+        function verDetalleHistorialById(transaccion) {
+            if (transaccion) {
+                verDetalle(transaccion);
+            }
+        }
+
+        function eliminarTransaccion(index) {
+            if (!confirm('¿Está seguro de eliminar esta transacción del historial?')) return;
+            transacciones.splice(index, 1);
+            saveData();
+            renderHistorial();
+            alert('Transacción eliminada');
+        }
+
+        function exportarExcel() {
+            if (transacciones.length === 0) {
+                alert('No hay datos para exportar');
+                return;
+            }
+            
+            var filtro = document.getElementById('filtroHistorial').value;
+            var transaccionesFiltradas = transacciones.filter(function(t) {
+                return filtro === 'todos' || t.type === filtro;
+            });
+            
+            if (transaccionesFiltradas.length === 0) {
+                alert('No hay datos para exportar con el filtro seleccionado');
+                return;
+            }
+            
+            var csv = 'Tipo,N° Corte,Nombre,Colores,Total,Unidades,Multiplicador,Taller,Fecha,Operario,Quién Entregó,Quién Controló,Pagado,Notas\n';
+            
+            transaccionesFiltradas.forEach(function(t) {
+                var typeText = t.type === 'corte' ? 'Corte' : (t.type === 'entrega' ? 'Enviado' : 'Retirado');
+                var colores = t.colors ? t.colors.map(function(c) { return c.nombre + ' (' + c.cantidad + ')'; }).join(', ') : '';
+                var pagado = t.pagado ? 'Sí' : 'No';
+                var numCorte = t.numCorte || '';
+                
+                csv += '"' + typeText + '",';
+                csv += '"' + numCorte + '",';
+                csv += '"' + (t.corteNombre || '') + '",';
+                csv += '"' + colores + '",';
+                csv += '"' + (t.total || '') + '",';
+                csv += '"' + (t.total || '') + '",';
+                csv += '"' + (t.multiplicador || '') + '",';
+                csv += '"' + (t.taller || '') + '",';
+                csv += '"' + (t.date || '') + '",';
+                csv += '"' + (t.usuario || '') + '",';
+                csv += '"' + (t.quienEntrega || '') + '",';
+                csv += '"' + (t.quienRetiro || '') + '",';
+                csv += '"' + pagado + '",';
+                csv += '"' + (t.notas || '') + '"';
+                csv += '\n';
+            });
+            
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            var fecha = new Date().toLocaleDateString().replace(/\//g, '-');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'historial_cortes_' + fecha + '.csv';
+            link.click();
+            alert('Exportación completada');
+        }
+
+        function saveData() {
+            localStorage.setItem('cortes', JSON.stringify(cortes));
+            localStorage.setItem('talleres', JSON.stringify(talleres));
+            localStorage.setItem('transacciones', JSON.stringify(transacciones));
+        }
+
+        function loadData() {
+            var savedCortes = localStorage.getItem('cortes');
+            var savedTalleres = localStorage.getItem('talleres');
+            var savedTransacciones = localStorage.getItem('transacciones');
+            if (savedCortes) cortes = JSON.parse(savedCortes);
+            if (savedTalleres) talleres = JSON.parse(savedTalleres);
+            if (savedTransacciones) transacciones = JSON.parse(savedTransacciones);
+        }
+
+        checkSession();
+    </script>
+</body>
+</html>
