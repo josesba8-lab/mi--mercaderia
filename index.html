@@ -567,7 +567,6 @@
         var multiplicadorEditando = 1;
 
         function isAdmin() {
-            console.log('isAdmin - currentUser:', currentUser, 'rol:', currentUser ? currentUser.rol : 'undefined');
             return currentUser && currentUser.rol === 'admin';
         }
 
@@ -951,7 +950,7 @@
                 });
                 var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
                 var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
-                var btnEditar = (c.estado === 'pendiente' && isAdmin()) ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">Editar</button>' : '';
+                var btnEditar = (c.estado !== 'retirado' && isAdmin()) ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">Editar</button>' : '';
                 var btnEnviar = c.estado === 'pendiente' ? '<button class="btn btn-success btn-small" style="margin-top:8px" onclick="openEnvioModal(' + c.id + ')">Enviar</button>' : '';
                 var btnRetirar = c.estado === 'enviado' ? '<button class="btn btn-secondary btn-small" style="margin-top:8px" onclick="openRetiroModal(' + c.id + ')">Retirar</button>' : '';
                 
