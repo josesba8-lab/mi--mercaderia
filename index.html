@@ -14,7 +14,6 @@
         var firebaseConfig = {
             apiKey: "AIzaSyCSinxo0bAJYS1UVwcbhhjs1G3jOt_FGYs",
             authDomain: "mercaderia-app-2165c.firebaseapp.com",
-            databaseURL: "https://mercaderia-app-2165c-default-rtdb.firebaseio.com",
             projectId: "mercaderia-app-2165c",
             storageBucket: "mercaderia-app-2165c.firebasestorage.app",
             messagingSenderId: "1005729887792",
@@ -22,10 +21,6 @@
         };
         firebase.initializeApp(firebaseConfig);
         var db = firebase.firestore();
-        db.enablePersistence({ synchronizeTabs: true }).catch(function(err) {
-            if (err.code == 'failed-precondition') { console.log('Persistence failed: multiple tabs open'); }
-            else if (err.code == 'unimplemented') { console.log('Persistence not available in this browser'); }
-        });
     </script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -60,7 +55,8 @@
         .header h1 { font-size: 18px; }
         .user-info { display: flex; align-items: center; gap: 10px; }
         .user-avatar { width: 35px; height: 35px; border-radius: 50%; background: white; color: #667eea; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; }
-        .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; }
+        .logout-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; cursor: pointer; margin-left: 5px; }
+        .sync-btn { background: rgba(255,255,255,0.2); border: none; color: white; padding: 5px 10px; border-radius: 5px; font-size: 14px; cursor: pointer; margin-right: 5px; }
         
         .nav { display: flex; background: #f5f5f5; border-bottom: 1px solid #ddd; }
         .nav-btn { flex: 1; padding: 14px 10px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 600; color: #666; display: flex; flex-direction: column; align-items: center; gap: 4px; }
@@ -198,8 +194,8 @@
             </div>
             <div class="login-form">
                 <div class="login-tabs">
-                    <div class="login-tab active" onclick="showLoginTab('login', event)">Iniciar Sesión</div>
-                    <div class="login-tab" onclick="showLoginTab('register', event)">Registrarse</div>
+                    <div class="login-tab active" id="loginTabBtn">Iniciar Sesión</div>
+                    <div class="login-tab" id="registerTabBtn">Registrarse</div>
                 </div>
                 <div id="loginForm">
                     <div class="form-group">
@@ -224,10 +220,14 @@
                     </div>
                     <div class="form-group">
                         <label>Rol</label>
-                        <select id="registerRol">
+                        <select id="registerRol" onchange="toggleAdminPassword()">
                             <option value="usuario">Usuario (solo cargar)</option>
                             <option value="admin">Admin (control total)</option>
                         </select>
+                    </div>
+                    <div class="form-group" id="adminPasswordGroup" style="display: none;">
+                        <label>Contraseña de Admin</label>
+                        <input type="password" id="registerAdminPassword" placeholder="Ingrese contraseña de admin">
                     </div>
                     <div class="form-group">
                         <label>Contraseña</label>
@@ -247,6 +247,7 @@
             <div class="header">
                 <h1>Control de Mercadería</h1>
                 <div class="user-info">
+                    <button class="sync-btn" onclick="syncFromCloud()" title="Sincronizar desde la nube">🔄</button>
                     <div class="user-avatar" id="userAvatar">U</div>
                     <button class="logout-btn" onclick="logout()">Salir</button>
                 </div>
@@ -263,6 +264,10 @@
                 <button class="nav-btn" onclick="showSection('historial')">
                     <span class="nav-icon">📋</span>
                     <span>Historial</span>
+                </button>
+                <button class="nav-btn" id="adminNavBtn" onclick="showSection('admin')" style="display:none;">
+                    <span class="nav-icon">⚙️</span>
+                    <span>Admin</span>
                 </button>
             </div>
 
@@ -289,8 +294,8 @@
                     <div id="nuevoCorte">
                         <h2>Nuevo Corte</h2>
                         <div class="form-group">
-                            <label>Operario:</label>
-                            <input type="text" id="corteOperario" placeholder="Nombre del operario" autocomplete="off">
+                            <label>Registrado por:</label>
+                            <input type="text" id="corteRegistrado por" placeholder="Nombre del operario" autocomplete="off">
                         </div>
                         <div class="form-group">
                             <label>Nombre del Corte:</label>
@@ -364,6 +369,14 @@
                     <button class="btn btn-secondary" onclick="registrarRetiro()">Registrar Retiro</button>
                 </div>
 
+                <div id="admin" class="section">
+                    <h2>Administración</h2>
+                    <h3>Usuarios Registrados</h3>
+                    <div id="usuariosContainer">
+                        <div class="empty-state">Cargando usuarios...</div>
+                    </div>
+                </div>
+
                 <div id="historial" class="section">
                     <h2>Historial</h2>
                     <div style="display:flex;gap:10px;margin-bottom:15px">
@@ -390,11 +403,13 @@
                 <button class="modal-close" onclick="closeColorModal()">&times;</button>
             </div>
             <div class="modal-colors" id="modalColors"></div>
-            <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
-                <input type="color" id="newColorPicker" value="#000000" style="width: 45px;height:45px;border:none;border-radius:8px;cursor:pointer">
-                <input type="text" id="newColorName" placeholder="Color" style="flex:1">
-                <input type="number" id="newColorCantidad" placeholder="Cantidad" min="1" value="1" style="width:80px">
-                <button onclick="addColorToCorte()" style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer;">+</button>
+            <div style="display: flex; gap: 5px; margin-top: 10px; align-items: center; flex-wrap: nowrap;">
+                <input type="color" id="newColorPicker" value="#000000" style="width: 35px;height:35px;border:none;border-radius:8px;cursor:pointer">
+                <input type="text" id="newColorName" placeholder="Color" style="flex:1;min-width:60px">
+                <input type="number" id="newColorCantidad" placeholder="Cant" min="1" value="1" style="width:40px">
+                <span style="font-weight:bold;color:#667eea">m:</span>
+                <input type="number" id="newColorMetros" placeholder="0" min="0" step="0.1" style="width:50px;padding:5px;border:2px solid #667eea;border-radius:8px;font-weight:bold">
+                <button onclick="addColorToCorte()" style="background: #667eea; color: white; border: none; padding: 8px 12px; border-radius: 8px; font-weight: 600; cursor: pointer;">+</button>
             </div>
             <button class="btn btn-primary" style="margin-top: 15px;" onclick="closeColorModal()">Listo</button>
         </div>
@@ -528,7 +543,9 @@
             <div style="display: flex; gap: 10px; margin-top: 10px; align-items: center;">
                 <input type="color" id="editNewColorPicker" value="#000000" style="width: 45px;height:45px;border:none;border-radius:8px;cursor:pointer">
                 <input type="text" id="editNewColorName" placeholder="Color" style="flex:1">
-                <input type="number" id="editNewColorCantidad" placeholder="Cantidad" min="1" value="1" style="width:80px">
+                <input type="number" id="editNewColorCantidad" placeholder="Cantidad" min="1" value="1" style="width:60px">
+                <span style="font-weight:bold;color:#667eea">m:</span>
+                <input type="number" id="editNewColorMetros" placeholder="0" min="0" step="0.1" style="width:70px;padding:10px;border:2px solid #667eea;border-radius:8px;font-weight:bold">
                 <button onclick="addColorToEdit()" style="background: #667eea; color: white; border: none; padding: 10px 15px; border-radius: 8px; font-weight: 600; cursor: pointer;">+</button>
             </div>
             <button class="btn btn-primary" style="margin-top: 15px;" onclick="closeEditColorModal()">Listo</button>
@@ -536,6 +553,7 @@
     </div>
 
     <script>
+        console.log('Script starting');
         var currentUser = null;
         var users = [];
         var cortes = [];
@@ -599,6 +617,16 @@
             }
         }
 
+        function toggleAdminPassword() {
+            var rol = document.getElementById('registerRol').value;
+            var adminGroup = document.getElementById('adminPasswordGroup');
+            if (rol === 'admin') {
+                adminGroup.style.display = 'block';
+            } else {
+                adminGroup.style.display = 'none';
+            }
+        }
+
         function register() {
             var usuario = document.getElementById('registerUsuario').value.trim();
             var nombre = document.getElementById('registerNombre').value.trim();
@@ -607,16 +635,28 @@
             var confirm = document.getElementById('registerConfirm').value;
             var errorEl = document.getElementById('registerError');
             loadUsers();
+            
             if (!usuario || !nombre || !password) {
                 errorEl.textContent = 'Complete todos los campos';
                 errorEl.classList.add('show');
                 return;
             }
+            
             if (password !== confirm) {
                 errorEl.textContent = 'Las contraseñas no coinciden';
                 errorEl.classList.add('show');
                 return;
             }
+            
+            if (rol === 'admin') {
+                var adminPassword = document.getElementById('registerAdminPassword').value;
+                if (adminPassword !== '4203') {
+                    errorEl.textContent = 'Contraseña de admin incorrecta';
+                    errorEl.classList.add('show');
+                    return;
+                }
+            }
+            
             if (users.some(function(u) { return u.usuario === usuario; })) {
                 errorEl.textContent = 'El usuario ya existe';
                 errorEl.classList.add('show');
@@ -631,6 +671,14 @@
         }
 
         function logout() {
+            // Remove from connected users
+            if (currentUser && connectedUsers[currentUser.usuario]) {
+                delete connectedUsers[currentUser.usuario];
+                if (navigator.onLine) {
+                    db.collection('data').doc('connectedUsers').set(connectedUsers).catch(function() {});
+                }
+            }
+            
             currentUser = null;
             localStorage.removeItem('currentUser');
             document.getElementById('loginSection').classList.remove('hidden');
@@ -643,12 +691,20 @@
         function showMainApp() {
             document.getElementById('loginSection').classList.add('hidden');
             document.getElementById('mainApp').classList.remove('hidden');
-            document.getElementById('userAvatar').textContent = currentUser.nombre.charAt(0).toUpperCase();
-            document.getElementById('operarioActual').textContent = currentUser.nombre || currentUser.usuario;
+            var avatarEl = document.getElementById('userAvatar');
+            var operarioEl = document.getElementById('operarioActual');
+            if (avatarEl) avatarEl.textContent = currentUser.nombre.charAt(0).toUpperCase();
+            if (operarioEl) operarioEl.textContent = currentUser.nombre || currentUser.usuario;
             
             var agregarTallerForm = document.getElementById('agregarTallerForm');
             if (agregarTallerForm) {
                 agregarTallerForm.style.display = isAdmin() ? 'block' : 'none';
+            }
+            
+            // Show/hide admin button
+            var adminNavBtn = document.getElementById('adminNavBtn');
+            if (adminNavBtn) {
+                adminNavBtn.style.display = isAdmin() ? 'inline-flex' : 'none';
             }
             
             loadData();
@@ -676,6 +732,9 @@
             (evt || event).currentTarget.classList.add('active');
             if (sectionId === 'talleres') {
                 updateTallerSelects();
+            }
+            if (sectionId === 'admin') {
+                renderUsuarios();
             }
         }
 
@@ -708,10 +767,12 @@
             var color = document.getElementById('newColorPicker').value;
             var nombre = document.getElementById('newColorName').value.trim();
             var cantidad = parseInt(document.getElementById('newColorCantidad').value) || 1;
+            var metros = parseFloat(document.getElementById('newColorMetros').value) || 0;
             if (nombre) {
-                coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad });
+                coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad, metros: metros });
                 document.getElementById('newColorName').value = '';
                 document.getElementById('newColorCantidad').value = '1';
+                document.getElementById('newColorMetros').value = '';
                 renderModalColors();
                 renderColoresCorte();
                 updateSummary();
@@ -730,7 +791,8 @@
                 html += '<div class="color-row">' +
                     '<input type="color" value="' + c.color + '" onchange="updateColor(' + i + ', \'color\', this.value)">' +
                     '<input type="text" value="' + c.nombre + '" placeholder="Nombre" onchange="updateColor(' + i + ', \'nombre\', this.value)">' +
-                    '<input type="number" value="' + c.cantidad + '" min="1" onchange="updateColor(' + i + ', \'cantidad\', this.value)">' +
+                    '<input type="number" value="' + c.cantidad + '" min="0" onchange="updateColor(' + i + ', \'cantidad\', this.value)">' +
+                    '<input type="number" value="' + (c.metros || 0) + '" min="0" step="0.1" placeholder="m" onchange="updateColor(' + i + ', \'metros\', this.value)" style="width:60px;padding:8px;border:1px solid #667eea;border-radius:5px;font-weight:bold">' +
                     '<button class="remove-color" onclick="removeColor(' + i + ')">X</button></div>';
             });
             container.innerHTML = html;
@@ -740,17 +802,25 @@
             var color = document.getElementById('newColorPicker').value;
             var nombre = document.getElementById('newColorName').value.trim();
             var cantidad = parseInt(document.getElementById('newColorCantidad').value) || 1;
+            var metros = parseFloat(document.getElementById('newColorMetros').value) || 0;
             if (!nombre) { alert('Ingrese el nombre del color'); return; }
-            coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad });
+            coloresCorte.push({ color: color, nombre: nombre, cantidad: cantidad, metros: metros });
             document.getElementById('newColorName').value = '';
             document.getElementById('newColorCantidad').value = '1';
+            document.getElementById('newColorMetros').value = '';
             renderModalColors();
             renderColoresCorte();
             updateSummary();
         }
 
         function updateColor(index, field, value) {
-            coloresCorte[index][field] = field === 'cantidad' ? parseInt(value) : value;
+            if (field === 'cantidad') {
+                coloresCorte[index][field] = parseInt(value) || 0;
+            } else if (field === 'metros') {
+                coloresCorte[index][field] = parseFloat(value) || 0;
+            } else {
+                coloresCorte[index][field] = value;
+            }
             renderColoresCorte();
             updateSummary();
         }
@@ -804,14 +874,14 @@
 
         function registrarCorte() {
             var nombre = document.getElementById('corteNombre').value.trim();
-            var operarioManual = document.getElementById('corteOperario').value.trim();
+            var operarioManual = document.getElementById('corteRegistrado por').value.trim();
             var operario = operarioManual || currentUser.usuario;
             if (!nombre) { alert('Ingrese el nombre del corte'); return; }
             if (coloresCorte.length === 0) { alert('Agregue al menos un color'); return; }
 
             var numCorte = ((cortes.length) % 100) + 1;
             var colors = coloresCorte.map(function(c) {
-                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * selectedMultiplier };
+                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * selectedMultiplier, metros: c.metros || 0 };
             });
             var total = colors.reduce(function(sum, c) { return sum + c.cantidadFinal; }, 0);
             var fechaActual = new Date().toLocaleString();
@@ -848,7 +918,7 @@
             alert('Corte "' + nombre + '" registrado: ' + total + ' unidades');
 
             document.getElementById('corteNombre').value = '';
-            document.getElementById('corteOperario').value = '';
+            document.getElementById('corteRegistrado por').value = '';
             coloresCorte = [];
             renderColoresCorte();
             updateSummary();
@@ -875,9 +945,10 @@
                 var statusText = c.estado === 'pendiente' ? 'Pendiente' : 'Enviado a ' + c.taller;
                 var coloresHtml = '';
                 c.colors.forEach(function(cc) {
-                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + '</span>';
+                    var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : '';
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + metrosText + '</span>';
                 });
-                var coloresDetalle = c.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ');
+                var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
                 var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
                 var btnEditar = (c.estado === 'pendiente' && isAdmin()) ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">Editar</button>' : '';
                 var btnEnviar = c.estado === 'pendiente' ? '<button class="btn btn-success btn-small" style="margin-top:8px" onclick="openEnvioModal(' + c.id + ')">Enviar</button>' : '';
@@ -886,12 +957,12 @@
                 var infoEntrega = '';
                 if (c.estado === 'enviado') {
                     var statusPago = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
-                    infoEntrega = '<br><span class="history-date">Entregó: ' + (c.quienEntrega || currentUser.usuario) + ' ' + statusPago + '</span>';
+                    infoEntrega = '<br><span class="history-date">Registrado por: ' + (c.quienEntrega || currentUser.usuario) + ' ' + statusPago + '</span>';
                 }
 
                 html += '<div class="corte-item">' +
                     '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span><span class="corte-status ' + statusClass + '">' + statusText + '</span></div>' +
-                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Operario: ' + c.usuario + '</span>' + infoEntrega + '</div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Registrado por: ' + c.usuario + '</span>' + infoEntrega + '</div>' +
                     '<div class="corte-colors">' + coloresHtml + '</div>' +
                     '<div class="corte-actions">' + btnEditar + btnEnviar + btnRetirar + '</div></div>';
             });
@@ -912,13 +983,14 @@
                 var numCorte = c.numCorte || 1;
                 var coloresHtml = '';
                 c.colors.forEach(function(cc) {
-                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + '</span>';
+                    var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : '';
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + metrosText + '</span>';
                 });
-                var coloresDetalle = c.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ');
+                var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
                 var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
                 var statusPagado = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PENDIENTE</span>';
                 var infoExtra = '';
-                if (c.quienEntrega) infoExtra += '<br>Entregó: ' + c.quienEntrega;
+                if (c.quienEntrega) infoExtra += '<br>Registrado por: ' + c.quienEntrega;
                 if (c.quienRetiro) infoExtra += '<br>Controló: ' + c.quienRetiro;
                 if (c.notas) infoExtra += '<br>Notas: ' + c.notas;
 
@@ -927,7 +999,7 @@
 
                 html += '<div class="corte-item">' +
                     '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span>' + statusPagado + '</div>' +
-                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Retirado: ' + (c.fechaRetiro || 'Sin fecha') + '</span><br>Taller: ' + c.taller + infoExtra + '<br><span class="history-date">Operario: ' + c.usuario + '</span></div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Retirado: ' + (c.fechaRetiro || 'Sin fecha') + '</span><br>Taller: ' + c.taller + infoExtra + '<br><span class="history-date">Registrado por: ' + c.usuario + '</span></div>' +
                     '<div class="corte-colors">' + coloresHtml + '</div>' +
                     '<div class="corte-actions">' + btnEditarRetiro + ' ' + btnEliminarRetiro + '</div></div>';
             });
@@ -1109,13 +1181,13 @@
                 '<p><strong>Total:</strong> ' + transaccion.total + ' unidades</p>' +
                 '<p><strong>Multiplicador:</strong> ' + multiplicador + 'x</p>' +
                 '<p><strong>Fecha:</strong> ' + transaccion.date + '</p>' +
-                (transaccion.usuario ? '<p><strong>Operario:</strong> ' + transaccion.usuario + '</p>' : '') +
+                (transaccion.usuario ? '<p><strong>Registrado por:</strong> ' + transaccion.usuario + '</p>' : '') +
                 '<div class="history-colors"><strong>Colores:</strong>' + coloresHtml + '</div>';
             if (transaccion.taller) {
                 html += '<p><strong>Taller:</strong> ' + transaccion.taller + '</p>';
             }
             if (transaccion.quienEntrega) {
-                html += '<p><strong>Quién Entregó:</strong> ' + transaccion.quienEntrega + '</p>';
+                html += '<p><strong>Quién Registrado por:</strong> ' + transaccion.quienEntrega + '</p>';
             }
             if (transaccion.quienRetiro) {
                 html += '<p><strong>Quién Controló:</strong> ' + transaccion.quienRetiro + '</p>';
@@ -1182,7 +1254,8 @@
                 html += '<div class="color-item">' +
                     '<div class="color-preview" style="background:' + c.color + '"></div>' +
                     '<input type="text" value="' + c.nombre + '" onchange="updateEditColor(' + i + ', \'nombre\', this.value)" style="flex:1;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
-                    '<input type="number" value="' + c.cantidad + '" min="1" onchange="updateEditColor(' + i + ', \'cantidad\', this.value)" style="width:60px;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
+                    '<input type="number" value="' + c.cantidad + '" min="0" onchange="updateEditColor(' + i + ', \'cantidad\', this.value)" style="width:50px;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
+                    '<input type="number" value="' + (c.metros || 0) + '" min="0" step="0.1" placeholder="m" onchange="updateEditColor(' + i + ', \'metros\', this.value)" style="width:60px;padding:8px;border:1px solid #ddd;border-radius:5px;margin-right:8px">' +
                     '<span style="font-weight:bold;color:#667eea">' + (c.cantidad * multiplicadorEditando) + '</span>' +
                     '<button onclick="removeEditColor(' + i + ')" style="background:#dc3545;color:white;border:none;padding:8px 12px;border-radius:5px;cursor:pointer;margin-left:8px">X</button></div>';
             });
@@ -1190,7 +1263,13 @@
         }
 
         function updateEditColor(index, field, value) {
-            coloresEditando[index][field] = field === 'cantidad' ? parseInt(value) : value;
+            if (field === 'cantidad') {
+                coloresEditando[index][field] = parseInt(value) || 0;
+            } else if (field === 'metros') {
+                coloresEditando[index][field] = parseFloat(value) || 0;
+            } else {
+                coloresEditando[index][field] = value;
+            }
             renderEditColores();
             updateEditSummary();
         }
@@ -1215,10 +1294,12 @@
             var color = document.getElementById('editNewColorPicker').value;
             var nombre = document.getElementById('editNewColorName').value.trim();
             var cantidad = parseInt(document.getElementById('editNewColorCantidad').value) || 1;
+            var metros = parseFloat(document.getElementById('editNewColorMetros').value) || 0;
             if (nombre) {
-                coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad });
+                coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad, metros: metros });
                 document.getElementById('editNewColorName').value = '';
                 document.getElementById('editNewColorCantidad').value = '1';
+                document.getElementById('editNewColorMetros').value = '';
                 renderEditColores();
                 updateEditSummary();
             }
@@ -1229,8 +1310,9 @@
             var color = document.getElementById('editNewColorPicker').value;
             var nombre = document.getElementById('editNewColorName').value.trim();
             var cantidad = parseInt(document.getElementById('editNewColorCantidad').value) || 1;
+            var metros = parseFloat(document.getElementById('editNewColorMetros').value) || 0;
             if (!nombre) { alert('Ingrese el nombre del color'); return; }
-            coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad });
+            coloresEditando.push({ color: color, nombre: nombre, cantidad: cantidad, metros: metros });
             document.getElementById('editNewColorName').value = '';
             document.getElementById('editNewColorCantidad').value = '1';
             renderEditColores();
@@ -1251,7 +1333,7 @@
             if (!corte) return;
             
             var colors = coloresEditando.map(function(c) {
-                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * multiplicadorEditando };
+                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * multiplicadorEditando, metros: c.metros || 0 };
             });
             var total = colors.reduce(function(sum, c) { return sum + c.cantidadFinal; }, 0);
             
@@ -1393,6 +1475,67 @@
             }
         }
 
+        function renderUsuarios() {
+            if (!isAdmin()) {
+                document.getElementById('usuariosContainer').innerHTML = '<div class="error-msg">Solo el administrador puede ver esta sección</div>';
+                return;
+            }
+            
+            loadUsers();
+            var container = document.getElementById('usuariosContainer');
+            var html = '';
+            
+            // Mostrar usuarios conectados
+            html += '<h3 style="margin-top:15px;">Usuarios Conectados</h3>';
+            var connectedList = Object.keys(connectedUsers);
+            if (connectedList.length === 0) {
+                html += '<div class="empty-state">No hay usuarios conectados</div>';
+            } else {
+                connectedList.forEach(function(key) {
+                    var u = connectedUsers[key];
+                    html += '<div class="taller-item" style="border-left:4px solid #28a745;">' +
+                        '<div class="taller-header"><span class="taller-name">' + u.nombre + '</span><span class="taller-badge active">En línea</span></div>' +
+                        '<div style="font-size:12px;color:#666;">' + u.rol + '</div></div>';
+                });
+            }
+            
+            // Mostrar todos los usuarios registrados
+            html += '<h3 style="margin-top:15px;">Todos los Usuarios</h3>';
+            
+            if (users.length === 0) {
+                html += '<div class="empty-state">No hay usuarios registrados</div>';
+            } else {
+                users.forEach(function(u) {
+                    var esActual = currentUser && currentUser.usuario === u.usuario;
+                    var estaConectado = connectedUsers[u.usuario] ? '<span class="taller-badge active" style="margin-left:5px">En línea</span>' : '';
+                    var btnEliminar = esActual ? '' : '<button class="btn btn-small btn-danger" onclick="eliminarUsuario(\'' + u.usuario + '\')">Eliminar</button>';
+                    html += '<div class="taller-item">' +
+                        '<div class="taller-header"><span class="taller-name">' + u.nombre + estaConectado + '</span><span class="taller-badge ' + (u.rol === 'admin' ? 'active' : 'inactive') + '">' + u.rol + '</span></div>' +
+                        '<div style="font-size:12px;color:#666;margin-bottom:5px;">Usuario: ' + u.usuario + (esActual ? ' (tú)' : '') + '</div>' +
+                        '<div class="taller-actions">' + btnEliminar + '</div></div>';
+                });
+            }
+            container.innerHTML = html;
+        }
+
+        function eliminarUsuario(usuario) {
+            if (!isAdmin()) {
+                alert('Solo el administrador puede eliminar usuarios');
+                return;
+            }
+            if (!confirm('¿Eliminar al usuario "' + usuario + '"?')) {
+                return;
+            }
+            if (usuario === currentUser.usuario) {
+                alert('No puedes eliminar tu propia cuenta');
+                return;
+            }
+            users = users.filter(function(u) { return u.usuario !== usuario; });
+            saveUsers();
+            renderUsuarios();
+            alert('Usuario eliminado');
+        }
+
         function updateTallerSelects() {
             var corteRetirar = document.getElementById('corteParaRetirar');
             var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
@@ -1476,19 +1619,19 @@
 
                 var details = '';
                 if (t.type === 'corte') {
-                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ') : '';
                     details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
                         (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '') +
                         '<br><button class="btn-detail" onclick=\'verDetalleHistorialById(' + JSON.stringify(t).replace(/'/g, "&#39;") + ')\'>Ver Detalle</button>';
                 } else if (t.type === 'entrega') {
-                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ') : '';
                     var statusPago = t.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
                     details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
                         '<br>Taller: ' + t.taller +
-                        (t.quienEntrega ? '<br><span class="history-date">Entregó: ' + t.quienEntrega + ' ' + statusPago + '</span>' : (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '')) +
+                        (t.quienEntrega ? '<br><span class="history-date">Registrado por: ' + t.quienEntrega + ' ' + statusPago + '</span>' : (t.usuario ? '<br><span class="history-date">Usuario: ' + t.usuario + '</span>' : '')) +
                         '<br><button class="btn-detail" onclick=\'verDetalleHistorialById(' + JSON.stringify(t).replace(/'/g, "&#39;") + ')\'>Ver Detalle</button>';
                 } else if (t.type === 'retiro') {
-                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { return cc.nombre + ' ' + cc.cantidad; }).join(' + ') : '';
+                    var coloresDetalle = t.colors && t.colors.length > 0 ? t.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ') : '';
                     var statusPago = t.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
                     details = '<div class="history-corte-name">#' + numCorte + ' - ' + t.corteNombre + '</div>' + coloresDetalle + ' = <strong>' + t.total + ' unidades</strong>' +
                         '<br>Taller: ' + t.taller + '<br>Controlado: ' + t.fechaRetiro + ' ' + statusPago +
@@ -1547,11 +1690,11 @@
                 return;
             }
             
-            var csv = 'Tipo,N° Corte,Nombre,Colores,Total,Unidades,Multiplicador,Taller,Fecha,Operario,Quién Entregó,Quién Controló,Pagado,Notas\n';
+            var csv = 'Tipo,N° Corte,Nombre,Colores,Total,Unidades,Multiplicador,Taller,Fecha,Registrado por,Quién Registrado por,Quién Controló,Pagado,Notas\n';
             
             transaccionesFiltradas.forEach(function(t) {
                 var typeText = t.type === 'corte' ? 'Corte' : (t.type === 'entrega' ? 'Enviado' : 'Retirado');
-                var colores = t.colors ? t.colors.map(function(c) { return c.nombre + ' (' + c.cantidad + ')'; }).join(', ') : '';
+                var colores = t.colors ? t.colors.map(function(c) { var metrosText = c.metros > 0 ? ' (' + c.metros + 'm)' : ''; return c.nombre + ' (' + c.cantidad + ')' + metrosText; }).join(', ') : '';
                 var pagado = t.pagado ? 'Sí' : 'No';
                 var numCorte = t.numCorte || '';
                 
@@ -1581,26 +1724,139 @@
             alert('Exportación completada');
         }
 
-        var isOnline = navigator.onLine;
         var pendingSync = false;
         var unsubscribe = null;
+        var connectedUsers = {};
+
+        function loadData() {
+            var savedCortes = localStorage.getItem('cortes');
+            var savedTalleres = localStorage.getItem('talleres');
+            var savedTransacciones = localStorage.getItem('transacciones');
+            
+            if (savedCortes) {
+                cortes = JSON.parse(savedCortes);
+            }
+            if (savedTalleres) {
+                talleres = JSON.parse(savedTalleres);
+            }
+            if (savedTransacciones) {
+                transacciones = JSON.parse(savedTransacciones);
+            }
+            
+            renderPendientes();
+            renderHistorial();
+            renderTalleres();
+            
+            // Always sync with Firebase to get shared data
+            if (navigator.onLine) {
+                db.collection('data').doc('appData').get().then(function(doc) {
+                    if (doc.exists) {
+                        var data = doc.data();
+                        var cloudCortes = data.cortes || [];
+                        var cloudTalleres = data.talleres || [];
+                        var cloudTransacciones = data.transacciones || [];
+                        
+                        // If cloud has more data than local, use cloud data
+                        if (cloudCortes.length > 0) {
+                            cortes = cloudCortes;
+                            talleres = cloudTalleres;
+                            transacciones = cloudTransacciones;
+                            
+                            // Save cloud data to localStorage
+                            localStorage.setItem('cortes', JSON.stringify(cortes));
+                            localStorage.setItem('talleres', JSON.stringify(talleres));
+                            localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                            
+                            renderPendientes();
+                            renderHistorial();
+                            renderTalleres();
+                        }
+                    }
+                }).catch(function(err) { 
+                    console.log('Error loading from Firebase:', err); 
+                });
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('cortes', JSON.stringify(cortes));
+            localStorage.setItem('talleres', JSON.stringify(talleres));
+            localStorage.setItem('transacciones', JSON.stringify(transacciones));
+            
+            if (navigator.onLine && cortes.length > 0) {
+                db.collection('data').doc('appData').set({
+                    cortes: cortes,
+                    talleres: talleres,
+                    transacciones: transacciones,
+                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch(function(err) { 
+                    console.log('Firebase error:', err); 
+});
+            }
+        }
+        
+        function createDailyBackup() {
+                if (!navigator.onLine || cortes.length === 0) return;
+                
+                var today = new Date().toISOString().split('T')[0];
+                var lastBackup = localStorage.getItem('lastBackupDate');
+                
+                if (lastBackup !== today) {
+                    var backupData = {
+                        cortes: cortes,
+                        talleres: talleres,
+                        transacciones: transacciones,
+                        fecha: today,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    db.collection('backups').doc(today).set(backupData).then(function() {
+                        localStorage.setItem('lastBackupDate', today);
+                        console.log('Backup diario creado:', today);
+                    }).catch(function(err) {
+                        console.log('Backup error:', err);
+                    });
+                }
+            }
+            
+            function saveData() {
+                localStorage.setItem('cortes', JSON.stringify(cortes));
+                localStorage.setItem('talleres', JSON.stringify(talleres));
+                localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                
+                if (navigator.onLine && cortes.length > 0) {
+                    db.collection('data').doc('appData').set({
+                        cortes: cortes,
+                        talleres: talleres,
+                        transacciones: transacciones,
+                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(function(err) { 
+                        console.log('Firebase error:', err); 
+                    });
+                }
+                
+                createDailyBackup();
+            }
 
         function setupRealtimeSync() {
-            if (!isOnline) return;
-            if (unsubscribe) unsubscribe();
+            if (!navigator.onLine) return;
             
-            unsubscribe = db.collection('data').doc('appData').onSnapshot(function(doc) {
+            if (currentUser) {
+                connectedUsers[currentUser.usuario] = {
+                    nombre: currentUser.nombre,
+                    rol: currentUser.rol,
+                    lastSeen: new Date().toISOString()
+                };
+                db.collection('data').doc('connectedUsers').set(connectedUsers).catch(function() {});
+            }
+            
+            db.collection('data').doc('appData').onSnapshot(function(doc) {
                 if (!doc.exists) return;
                 var data = doc.data();
-                var localCortes = JSON.stringify(cortes);
-                var localTalleres = JSON.stringify(talleres);
-                var localTransacciones = JSON.stringify(transacciones);
+                var cloudCortes = data.cortes || [];
                 
-                if (localCortes !== JSON.stringify(data.cortes) ||
-                    localTalleres !== JSON.stringify(data.talleres) ||
-                    localTransacciones !== JSON.stringify(data.transacciones)) {
-                    
-                    cortes = data.cortes || [];
+                if (cloudCortes.length > 0 && cortes.length === 0) {
+                    cortes = cloudCortes;
                     talleres = data.talleres || [];
                     transacciones = data.transacciones || [];
                     
@@ -1608,70 +1864,53 @@
                     localStorage.setItem('talleres', JSON.stringify(talleres));
                     localStorage.setItem('transacciones', JSON.stringify(transacciones));
                     
-                    if (typeof renderPendientes === 'function') renderPendientes();
-                    if (typeof renderHistorial === 'function') renderHistorial();
-                    if (typeof renderTalleres === 'function') renderTalleres();
-                    if (typeof updatePendientesBadge === 'function') updatePendientesBadge();
-                    if (typeof updateTallerSelects === 'function') updateTallerSelects();
+                    renderPendientes();
+                    renderHistorial();
+                    renderTalleres();
                 }
-            }, function(err) { console.log('Realtime sync error:', err); });
-        }
-
-        function saveData() {
-            localStorage.setItem('cortes', JSON.stringify(cortes));
-            localStorage.setItem('talleres', JSON.stringify(talleres));
-            localStorage.setItem('transacciones', JSON.stringify(transacciones));
-            if (isOnline) {
-                db.collection('data').doc('appData').set({
-                    cortes: cortes,
-                    talleres: talleres,
-                    transacciones: transacciones,
-                    lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                }).catch(function(err) { console.log('Error saving to Firebase:', err); });
-            } else {
-                pendingSync = true;
-            }
-        }
-
-        function loadData() {
-            var savedCortes = localStorage.getItem('cortes');
-            var savedTalleres = localStorage.getItem('talleres');
-            var savedTransacciones = localStorage.getItem('transacciones');
-            if (savedCortes) cortes = JSON.parse(savedCortes);
-            if (savedTalleres) talleres = JSON.parse(savedTalleres);
-            if (savedTransacciones) transacciones = JSON.parse(savedTransacciones);
+            }, function(err) { console.log('Sync error:', err); });
             
-            if (isOnline) {
-                db.collection('data').doc('appData').get().then(function(doc) {
-                    if (doc.exists) {
-                        var data = doc.data();
-                        if (data.cortes) cortes = data.cortes;
-                        if (data.talleres) talleres = data.talleres;
-                        if (data.transacciones) transacciones = data.transacciones;
-                        localStorage.setItem('cortes', JSON.stringify(cortes));
-                        localStorage.setItem('talleres', JSON.stringify(talleres));
-                        localStorage.setItem('transacciones', JSON.stringify(transacciones));
-                        if (typeof renderPendientes === 'function') renderPendientes();
-                        if (typeof renderHistorial === 'function') renderHistorial();
-                        if (typeof renderTalleres === 'function') renderTalleres();
-                    }
-                }).catch(function(err) { console.log('Error loading from Firebase:', err); });
-            }
+            db.collection('data').doc('connectedUsers').onSnapshot(function(doc) {
+                if (!doc.exists) return;
+                connectedUsers = doc.data() || {};
+            }, function(err) { console.log('Users error:', err); });
         }
-
-        window.addEventListener('online', function() {
-            isOnline = true;
-            if (pendingSync) {
-                saveData();
-                pendingSync = false;
-            }
-        });
         
-        window.addEventListener('offline', function() {
-            isOnline = false;
-        });
+        function syncFromCloud() {
+            if (!navigator.onLine) {
+                alert('Sin conexión a internet');
+                return;
+            }
+            
+            db.collection('data').doc('appData').get().then(function(doc) {
+                if (!doc.exists) {
+                    alert('No hay datos en la nube');
+                    return;
+                }
+                
+                var data = doc.data();
+                cortes = data.cortes || [];
+                talleres = data.talleres || [];
+                transacciones = data.transacciones || [];
+                
+                localStorage.setItem('cortes', JSON.stringify(cortes));
+                localStorage.setItem('talleres', JSON.stringify(talleres));
+                localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                
+                renderPendientes();
+                renderHistorial();
+                renderTalleres();
+                alert('Datos sincronizados desde la nube');
+            }).catch(function(err) {
+                console.log('Sync error:', err);
+                alert('Error al sincronizar: ' + err.message);
+            });
+        }
 
         checkSession();
+        
+        document.getElementById('loginTabBtn').addEventListener('click', function() { showLoginTab('login', event); });
+        document.getElementById('registerTabBtn').addEventListener('click', function() { showLoginTab('register', event); });
     </script>
 </body>
 </html>

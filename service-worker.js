@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mercaderia-v2';
+const CACHE_NAME = 'mercaderia-v7';
 const urlsToCache = [
   './',
   './index.html',
