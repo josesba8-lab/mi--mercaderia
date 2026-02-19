@@ -567,6 +567,7 @@
         var multiplicadorEditando = 1;
 
         function isAdmin() {
+            console.log('isAdmin - currentUser:', currentUser);
             return currentUser && currentUser.rol === 'admin';
         }
 
