@@ -344,8 +344,11 @@
 
                     <div id="cortesEnviados" style="display: none;">
                         <h2>Cortes Enviados</h2>
-                        <div style="display:flex;gap:10px;margin-bottom:15px">
-                            <input type="text" id="buscarEnviados" placeholder="Buscar por nombre..." oninput="filtrarEnviados()" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd">
+                        <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap">
+                            <input type="text" id="buscarEnviados" placeholder="Buscar por nombre..." oninput="filtrarEnviados()" style="flex:1;min-width:150px;padding:10px;border-radius:8px;border:2px solid #ddd">
+                            <select id="filtroTallerEnviados" onchange="filtrarEnviados()" style="flex:1;min-width:150px;padding:10px;border-radius:8px;border:2px solid #ddd">
+                                <option value="">Todos los talleres</option>
+                            </select>
                         </div>
                         <div id="enviadosContainer">
                             <div class="empty-state">No hay cortes enviados</div>
@@ -781,6 +784,7 @@
                 document.getElementById('cortesPendientes').style.display = 'none';
                 document.getElementById('cortesEnviados').style.display = 'block';
                 document.getElementById('cortesRetirados').style.display = 'none';
+                actualizarFiltroTallerEnviados();
                 renderEnviados();
             } else if (tab === 'retirados') {
                 document.getElementById('nuevoCorte').style.display = 'none';
@@ -1004,6 +1008,12 @@
             var container = document.getElementById('enviadosContainer');
             var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
 
+            var filtroTaller = document.getElementById('filtroTallerEnviados') ? document.getElementById('filtroTallerEnviados').value : '';
+            
+            if (filtroTaller) {
+                enviados = enviados.filter(function(c) { return c.taller === filtroTaller; });
+            }
+
             if (enviados.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay cortes enviados</div>';
                 return;
@@ -1035,7 +1045,7 @@
                     '<div class="corte-actions">' + btnEditar + btnRetirar + '</div></div>';
             });
             if (!html) {
-                container.innerHTML = '<div class="empty-state">No hay cortes enviados que coincidan con la búsqueda</div>';
+                container.innerHTML = '<div class="empty-state">No hay cortesenviados que coincidan con la búsqueda</div>';
             } else {
                 container.innerHTML = html;
             }
@@ -1043,6 +1053,20 @@
         
         function filtrarEnviados() {
             renderEnviados();
+        }
+        
+        function actualizarFiltroTallerEnviados() {
+            var select = document.getElementById('filtroTallerEnviados');
+            if (!select) return;
+            var talleresUsados = {};
+            cortes.filter(function(c) { return c.estado === 'enviado' && c.taller; }).forEach(function(c) {
+                talleresUsados[c.taller] = true;
+            });
+            var options = '<option value="">Todos los talleres</option>';
+            Object.keys(talleresUsados).sort().forEach(function(taller) {
+                options += '<option value="' + taller + '">' + taller + '</option>';
+            });
+            select.innerHTML = options;
         }
 
         function renderRetirados() {
