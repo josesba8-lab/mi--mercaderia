@@ -356,12 +356,13 @@
 
                     <div id="cortesRetirados" style="display: none;">
                         <h2>Cortes Retirados</h2>
+                        <div style="display:flex;gap:10px;margin-bottom:15px;flex-wrap:wrap">
+                            <select id="filtroTallerRetirados" onchange="filtrarRetirados()" style="flex:1;min-width:150px;padding:10px;border-radius:8px;border:2px solid #ddd">
+                                <option value="">Todos los talleres</option>
+                            </select>
+                        </div>
                         <div id="retiradosContainer">
                             <div class="empty-state">No hay cortesretirados</div>
-                        </div>
-                    </div>
-                        <div id="retiradosContainer">
-                            <div class="empty-state">No hay cortes retirados</div>
                         </div>
                     </div>
                 </div>
@@ -791,6 +792,7 @@
                 document.getElementById('cortesPendientes').style.display = 'none';
                 document.getElementById('cortesEnviados').style.display = 'none';
                 document.getElementById('cortesRetirados').style.display = 'block';
+                actualizarFiltroTallerRetirados();
                 renderRetirados();
             }
         }
@@ -1066,31 +1068,54 @@
             });
             select.innerHTML = options;
         }
+        
+        function actualizarFiltroTallerRetirados() {
+            var select = document.getElementById('filtroTallerRetirados');
+            if (!select) return;
+            var talleresUsados = {};
+            cortes.filter(function(c) { return c.estado === 'retirado' && c.taller; }).forEach(function(c) {
+                talleresUsados[c.taller] = true;
+            });
+            var options = '<option value="">Todos los talleres</option>';
+            Object.keys(talleresUsados).sort().forEach(function(taller) {
+                options += '<option value="' + taller + '">' + taller + '</option>';
+            });
+            select.innerHTML = options;
+        }
+        
+        function filtrarRetirados() {
+            renderRetirados();
+        }
 
         function renderRetirados() {
             var container = document.getElementById('retiradosContainer');
-            var retiradoAll = cortes.filter(function(c) { return c.estado === 'retirado'; });
+            retiradoAll = cortes.filter(function(c) { return c.estado === 'retirado'; });
+
+            var filtroTaller = document.getElementById('filtroTallerRetirados') ? document.getElementById('filtroTallerRetirados').value : '';
+            if (filtroTaller) {
+                retiradoAll =retiradoAll.filter(function(c) { return c.taller === filtroTaller; });
+            }
 
             var now = new Date();
             var hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             var ontem = new Date(hoy);
             ontem.setDate(ontem.getDate() - 1);
 
-            var retirados = {
+            retirados = {
                 today: [],
                 yesterday: [],
                 older: []
             };
 
-            retiradoAll.forEach(function(c) {
+           retiradoAll.forEach(function(c) {
                 var fechaRetiro = c.fechaRetiro ? new Date(c.fechaRetiro) : new Date(0);
                 var fechaRetiroDate = new Date(fechaRetiro.getFullYear(), fechaRetiro.getMonth(), fechaRetiro.getDate());
                 if (fechaRetiroDate.getTime() === hoy.getTime()) {
-                   retirados.today.push(c);
+                   rizados.today.push(c);
                 } else if (fechaRetiroDate.getTime() === ontem.getTime()) {
-                   retirados.yesterday.push(c);
+                   rizados.yesterday.push(c);
                 } else {
-                   retirados.older.push(c);
+                   rizados.older.push(c);
                 }
             });
 
