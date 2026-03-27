@@ -1111,11 +1111,11 @@
                 var fechaRetiro = c.fechaRetiro ? new Date(c.fechaRetiro) : new Date(0);
                 var fechaRetiroDate = new Date(fechaRetiro.getFullYear(), fechaRetiro.getMonth(), fechaRetiro.getDate());
                 if (fechaRetiroDate.getTime() === hoy.getTime()) {
-                   rizados.today.push(c);
+                   retirados.today.push(c);
                 } else if (fechaRetiroDate.getTime() === ontem.getTime()) {
-                   rizados.yesterday.push(c);
+                   retirados.yesterday.push(c);
                 } else {
-                   rizados.older.push(c);
+                   retirados.older.push(c);
                 }
             });
 
