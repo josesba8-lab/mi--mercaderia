@@ -175,6 +175,7 @@
         
         .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 8px; }
         .badge-warning { background: #fff3cd; color: #856404; }
+        .badge-info { background: #667eea; color: white; }
         
         .btn-detail { background: #667eea; color: white; border: none; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 12px; margin-top: 8px; }
         .history-colors { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #ddd; }
@@ -287,6 +288,10 @@
                             Pendientes
                             <span id="pendientesBadge" class="badge badge-warning" style="display: none;">0</span>
                         </button>
+                        <button class="section-tab" onclick="showCorteTab('enviados', event)">
+                            Enviados
+                            <span id="enviadosBadge" class="badge badge-info" style="display: none;">0</span>
+                        </button>
                         <button class="section-tab" onclick="showCorteTab('retirados', event)">
                             Retirados
                             <span id="retiradosBadge" class="badge badge-success" style="display: none;">0</span>
@@ -334,6 +339,13 @@
                         <h2>Cortes Pendientes</h2>
                         <div id="pendientesContainer">
                             <div class="empty-state">No hay cortes pendientes</div>
+                        </div>
+                    </div>
+
+                    <div id="cortesEnviados" style="display: none;">
+                        <h2>Cortes Enviados</h2>
+                        <div id="enviadosContainer">
+                            <div class="empty-state">No hay cortes enviados</div>
                         </div>
                     </div>
 
@@ -515,6 +527,7 @@
                 <span class="modal-title">Editar Corte</span>
                 <button class="modal-close" onclick="closeEditModal()">&times;</button>
             </div>
+            <p style="font-size:12px;color:#666;margin-bottom:15px">Todos pueden editar el multiplicador. Solo admin puede editar nombre y colores.</p>
             <div class="form-group">
                 <label>Nombre del Corte:</label>
                 <input type="text" id="editCorteNombre">
@@ -524,7 +537,7 @@
                 <div class="multiplier-grid" id="editMultiplierGrid"></div>
             </div>
             <div class="form-group">
-                <label>Colores:</label>
+                <label>Colores (solo admin):</label>
                 <div id="editColoresContainer"></div>
                 <button class="add-color-btn" onclick="openAddColorEdit()">+ Agregar Color</button>
             </div>
@@ -532,7 +545,7 @@
                 <div class="summary-item"><span>Total:</span><span id="editTotal">0</span></div>
             </div>
             <button class="btn btn-primary" onclick="guardarEdicion()">Guardar Cambios</button>
-            <button class="btn btn-danger" style="margin-top:8px" onclick="eliminarCorte()">Eliminar Corte</button>
+            <button id="editDeleteBtn" class="btn btn-danger" style="margin-top:8px;display:none" onclick="eliminarCorte()">Eliminar Corte</button>
         </div>
     </div>
 
@@ -673,6 +686,9 @@
         }
 
         function logout() {
+            // Cleanup realtime listeners
+            cleanupRealtimeSync();
+            
             // Remove from connected users
             if (currentUser && connectedUsers[currentUser.usuario]) {
                 delete connectedUsers[currentUser.usuario];
@@ -746,15 +762,24 @@
             if (tab === 'nuevo') {
                 document.getElementById('nuevoCorte').style.display = 'block';
                 document.getElementById('cortesPendientes').style.display = 'none';
+                document.getElementById('cortesEnviados').style.display = 'none';
                 document.getElementById('cortesRetirados').style.display = 'none';
             } else if (tab === 'pendientes') {
                 document.getElementById('nuevoCorte').style.display = 'none';
                 document.getElementById('cortesPendientes').style.display = 'block';
+                document.getElementById('cortesEnviados').style.display = 'none';
                 document.getElementById('cortesRetirados').style.display = 'none';
                 renderPendientes();
+            } else if (tab === 'enviados') {
+                document.getElementById('nuevoCorte').style.display = 'none';
+                document.getElementById('cortesPendientes').style.display = 'none';
+                document.getElementById('cortesEnviados').style.display = 'block';
+                document.getElementById('cortesRetirados').style.display = 'none';
+                renderEnviados();
             } else if (tab === 'retirados') {
                 document.getElementById('nuevoCorte').style.display = 'none';
                 document.getElementById('cortesPendientes').style.display = 'none';
+                document.getElementById('cortesEnviados').style.display = 'none';
                 document.getElementById('cortesRetirados').style.display = 'block';
                 renderRetirados();
             }
@@ -932,16 +957,14 @@
         function renderPendientes() {
             var container = document.getElementById('pendientesContainer');
             var pendientes = cortes.filter(function(c) { return c.estado === 'pendiente'; });
-            var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
-            var todos = pendientes.concat(enviados);
 
-            if (todos.length === 0) {
+            if (pendientes.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay cortes pendientes</div>';
                 return;
             }
 
             var html = '';
-            todos.forEach(function(c) {
+            pendientes.forEach(function(c) {
                 var numCorte = c.numCorte || 1;
                 var statusClass = c.estado === 'pendiente' ? 'pendiente' : 'enviado';
                 var statusText = c.estado === 'pendiente' ? 'Pendiente' : 'Enviado a ' + c.taller;
@@ -952,7 +975,7 @@
                 });
                 var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
                 var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
-                var btnEditar = (c.estado !== 'retirado' && isAdmin()) ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">Editar</button>' : '';
+                var btnEditar = (c.estado !== 'retirado') ? '<button class="btn btn-small ' + (isAdmin() ? 'btn-primary' : 'btn-secondary') + '" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">' + (isAdmin() ? 'Editar' : 'Editar Multiplicador') + '</button>' : '';
                 var btnEnviar = c.estado === 'pendiente' ? '<button class="btn btn-success btn-small" style="margin-top:8px" onclick="openEnvioModal(' + c.id + ')">Enviar</button>' : '';
                 var btnRetirar = c.estado === 'enviado' ? '<button class="btn btn-secondary btn-small" style="margin-top:8px" onclick="openRetiroModal(' + c.id + ')">Retirar</button>' : '';
                 
@@ -967,6 +990,39 @@
                     '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Registrado por: ' + c.usuario + '</span>' + infoEntrega + '</div>' +
                     '<div class="corte-colors">' + coloresHtml + '</div>' +
                     '<div class="corte-actions">' + btnEditar + btnEnviar + btnRetirar + '</div></div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function renderEnviados() {
+            var container = document.getElementById('enviadosContainer');
+            var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; });
+
+            if (enviados.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay cortes enviados</div>';
+                return;
+            }
+
+            var html = '';
+            enviados.forEach(function(c) {
+                var numCorte = c.numCorte || 1;
+                var coloresHtml = '';
+                c.colors.forEach(function(cc) {
+                    var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : '';
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + metrosText + '</span>';
+                });
+                var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
+                var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
+                var statusPago = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:10px;margin-left:5px">PENDIENTE</span>';
+                
+                var btnEditar = '<button class="btn btn-small ' + (isAdmin() ? 'btn-primary' : 'btn-secondary') + '" style="margin-top:8px" onclick="openEditModal(' + c.id + ')">' + (isAdmin() ? 'Editar' : 'Editar Multiplicador') + '</button>';
+                var btnRetirar = '<button class="btn btn-success btn-small" style="margin-top:8px" onclick="openRetiroModal(' + c.id + ')">Retirar</button>';
+
+                html += '<div class="corte-item">' +
+                    '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span><span class="corte-status enviado">Enviado a ' + c.taller + '</span></div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Registrado por: ' + c.usuario + '</span><br>' + statusPago + '</div>' +
+                    '<div class="corte-colors">' + coloresHtml + '</div>' +
+                    '<div class="corte-actions">' + btnEditar + btnRetirar + '</div></div>';
             });
             container.innerHTML = html;
         }
@@ -1217,6 +1273,18 @@
             multiplicadorEditando = corte.multiplicador;
             coloresEditando = JSON.parse(JSON.stringify(corte.colors));
             
+            // Disable name and colors for non-admins
+            document.getElementById('editCorteNombre').disabled = !isAdmin();
+            document.getElementById('editColoresContainer').style.opacity = isAdmin() ? '1' : '0.5';
+            
+            // Hide add color button for non-admins
+            var addColorBtn = document.querySelector('#editModal .add-color-btn');
+            if (addColorBtn) addColorBtn.style.display = isAdmin() ? 'block' : 'none';
+            
+            // Show/hide delete button based on admin
+            var deleteBtn = document.getElementById('editDeleteBtn');
+            if (deleteBtn) deleteBtn.style.display = isAdmin() ? 'block' : 'none';
+            
             renderEditMultiplier();
             renderEditColores();
             updateEditSummary();
@@ -1323,24 +1391,37 @@
         }
 
         function guardarEdicion() {
-            if (!isAdmin()) {
-                alert('Solo el administrador puede editar cortes');
-                return;
-            }
-            var nombre = document.getElementById('editCorteNombre').value.trim();
-            if (!nombre) { alert('Ingrese el nombre del corte'); return; }
-            if (coloresEditando.length === 0) { alert('Agregue al menos un color'); return; }
-            
             var corte = cortes.find(function(c) { return c.id === corteIdEditando; });
             if (!corte) return;
             
-            var colors = coloresEditando.map(function(c) {
-                return { color: c.color, nombre: c.nombre, cantidad: c.cantidad, cantidadFinal: c.cantidad * multiplicadorEditando, metros: c.metros || 0 };
-            });
-            var total = colors.reduce(function(sum, c) { return sum + c.cantidadFinal; }, 0);
+            var nombre = document.getElementById('editCorteNombre').value.trim();
+            if (!nombre) { alert('Ingrese el nombre del corte'); return; }
             
-            corte.nombre = nombre;
-            corte.colors = colors;
+            // Calculate new total based on multiplier
+            var total = 0;
+            if (coloresEditando && coloresEditando.length > 0) {
+                total = coloresEditando.reduce(function(sum, c) {
+                    return sum + (c.cantidad * multiplicadorEditando);
+                }, 0);
+            }
+            
+            // Update fields
+            if (isAdmin()) {
+                // Admin can edit everything
+                var colors = coloresEditando.map(function(c) {
+                    return { 
+                        color: c.color, 
+                        nombre: c.nombre, 
+                        cantidad: c.cantidad, 
+                        cantidadFinal: c.cantidad * multiplicadorEditando, 
+                        metros: c.metros || 0 
+                    };
+                });
+                corte.colors = colors;
+                corte.nombre = nombre;
+            }
+            
+            // Anyone can update multiplier and total
             corte.multiplicador = multiplicadorEditando;
             corte.total = total;
             
@@ -1348,7 +1429,7 @@
             closeEditModal();
             renderPendientes();
             renderHistorial();
-            alert('Corte actualizado');
+            alert('Multiplicador actualizado a ' + multiplicadorEditando + 'x');
         }
 
         function eliminarCorte() {
@@ -1403,22 +1484,37 @@
         }
 
         function updatePendientesBadge() {
-            var pendientes = cortes.filter(function(c) { return c.estado === 'pendiente' || c.estado === 'enviado'; }).length;
+            var pendientes = cortes.filter(function(c) { return c.estado === 'pendiente'; }).length;
             var badge = document.getElementById('pendientesBadge');
-            if (pendientes > 0) {
-                badge.textContent = pendientes;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.style.display = 'none';
+            if (badge) {
+                if (pendientes > 0) {
+                    badge.textContent = pendientes;
+                    badge.style.display = 'inline-block';
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+            
+            var enviados = cortes.filter(function(c) { return c.estado === 'enviado'; }).length;
+            var badgeE = document.getElementById('enviadosBadge');
+            if (badgeE) {
+                if (enviados > 0) {
+                    badgeE.textContent = enviados;
+                    badgeE.style.display = 'inline-block';
+                } else {
+                    badgeE.style.display = 'none';
+                }
             }
             
             var retirados = cortes.filter(function(c) { return c.estado === 'retirado'; }).length;
             var badgeR = document.getElementById('retiradosBadge');
-            if (retirados > 0) {
-                badgeR.textContent = retirados;
-                badgeR.style.display = 'inline-block';
-            } else {
-                badgeR.style.display = 'none';
+            if (badgeR) {
+                if (retirados > 0) {
+                    badgeR.textContent = retirados;
+                    badgeR.style.display = 'inline-block';
+                } else {
+                    badgeR.style.display = 'none';
+                }
             }
         }
 
@@ -1727,8 +1823,48 @@
         }
 
         var pendingSync = false;
-        var unsubscribe = null;
+        var unsubscribeCortes = null;
+        var unsubscribeTalleres = null;
+        var unsubscribeTransacciones = null;
+        var unsubscribeConnectedUsers = null;
         var connectedUsers = {};
+        var isLocalUpdate = false;
+        var syncStatusElement = null;
+        var wasOffline = false;
+
+        // Detectar cambios de conexión
+        window.addEventListener('online', function() {
+            console.log('Conexión restaurada');
+            showSyncIndicator('✓ Conectado a internet');
+            if (currentUser) {
+                setupRealtimeSync();
+                syncFromCloud();
+            }
+        });
+
+        window.addEventListener('offline', function() {
+            console.log('Conexión perdida');
+            showSyncIndicator('✗ Sin conexión a internet', true);
+            wasOffline = true;
+        });
+
+        function createSyncStatusElement() {
+            if (syncStatusElement) return;
+            syncStatusElement = document.createElement('div');
+            syncStatusElement.id = 'syncStatus';
+            syncStatusElement.style.cssText = 'position:fixed;top:60px;right:10px;background:#28a745;color:white;padding:8px 15px;border-radius:20px;font-size:12px;z-index:2000;display:none;box-shadow:0 2px 10px rgba(0,0,0,0.2)';
+            document.body.appendChild(syncStatusElement);
+        }
+
+        function showSyncIndicator(message, isError) {
+            createSyncStatusElement();
+            syncStatusElement.textContent = message || '✓ Sincronizado';
+            syncStatusElement.style.background = isError ? '#dc3545' : '#28a745';
+            syncStatusElement.style.display = 'block';
+            setTimeout(function() {
+                syncStatusElement.style.display = 'none';
+            }, 3000);
+        }
 
         function loadData() {
             var savedCortes = localStorage.getItem('cortes');
@@ -1757,9 +1893,11 @@
                         var cloudCortes = data.cortes || [];
                         var cloudTalleres = data.talleres || [];
                         var cloudTransacciones = data.transacciones || [];
+                        var cloudLastUpdate = data.lastUpdate ? data.lastUpdate.toMillis() : 0;
+                        var localLastUpdate = localStorage.getItem('lastUpdate') ? parseInt(localStorage.getItem('lastUpdate')) : 0;
                         
-                        // If cloud has more data than local, use cloud data
-                        if (cloudCortes.length > 0) {
+                        // If cloud has more recent data, use cloud data
+                        if (cloudCortes.length > 0 && (cloudLastUpdate > localLastUpdate || cortes.length === 0)) {
                             cortes = cloudCortes;
                             talleres = cloudTalleres;
                             transacciones = cloudTransacciones;
@@ -1768,10 +1906,15 @@
                             localStorage.setItem('cortes', JSON.stringify(cortes));
                             localStorage.setItem('talleres', JSON.stringify(talleres));
                             localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                            localStorage.setItem('lastUpdate', cloudLastUpdate || Date.now());
                             
                             renderPendientes();
+                            renderRetirados();
                             renderHistorial();
                             renderTalleres();
+                            updatePendientesBadge();
+                            updateTallerSelects();
+                            showSyncIndicator('Datos actualizados desde la nube');
                         }
                     }
                 }).catch(function(err) { 
@@ -1780,69 +1923,81 @@
             }
         }
 
+        function createDailyBackup() {
+            if (!navigator.onLine || cortes.length === 0) return;
+            
+            var today = new Date().toISOString().split('T')[0];
+            var lastBackup = localStorage.getItem('lastBackupDate');
+            
+            if (lastBackup !== today) {
+                var backupData = {
+                    cortes: cortes,
+                    talleres: talleres,
+                    transacciones: transacciones,
+                    fecha: today,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                db.collection('backups').doc(today).set(backupData).then(function() {
+                    localStorage.setItem('lastBackupDate', today);
+                    console.log('Backup diario creado:', today);
+                }).catch(function(err) {
+                    console.log('Backup error:', err);
+                });
+            }
+        }
+        
         function saveData() {
             localStorage.setItem('cortes', JSON.stringify(cortes));
             localStorage.setItem('talleres', JSON.stringify(talleres));
             localStorage.setItem('transacciones', JSON.stringify(transacciones));
+            localStorage.setItem('lastUpdate', Date.now());
             
-            if (navigator.onLine && cortes.length > 0) {
+            // Marcar como actualización local para evitar ciclos de sincronización
+            isLocalUpdate = true;
+            
+            if (navigator.onLine && cortes.length >= 0) {
+                showSyncIndicator('⏳ Guardando...');
+                
                 db.collection('data').doc('appData').set({
                     cortes: cortes,
                     talleres: talleres,
                     transacciones: transacciones,
                     lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
+                }).then(function() { 
+                    console.log('Saved to Firebase');
+                    showSyncIndicator('✓ Guardado en la nube');
+                    // Reset flag después de delay
+                    setTimeout(function() { isLocalUpdate = false; }, 1500);
                 }).catch(function(err) { 
                     console.log('Firebase error:', err); 
-});
-            }
-        }
-        
-        function createDailyBackup() {
-                if (!navigator.onLine || cortes.length === 0) return;
-                
-                var today = new Date().toISOString().split('T')[0];
-                var lastBackup = localStorage.getItem('lastBackupDate');
-                
-                if (lastBackup !== today) {
-                    var backupData = {
-                        cortes: cortes,
-                        talleres: talleres,
-                        transacciones: transacciones,
-                        fecha: today,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                    };
-                    
-                    db.collection('backups').doc(today).set(backupData).then(function() {
-                        localStorage.setItem('lastBackupDate', today);
-                        console.log('Backup diario creado:', today);
-                    }).catch(function(err) {
-                        console.log('Backup error:', err);
-                    });
-                }
+                    showSyncIndicator('✗ Error al guardar', true);
+                    isLocalUpdate = false;
+                });
+            } else {
+                isLocalUpdate = false;
             }
             
-            function saveData() {
-                localStorage.setItem('cortes', JSON.stringify(cortes));
-                localStorage.setItem('talleres', JSON.stringify(talleres));
-                localStorage.setItem('transacciones', JSON.stringify(transacciones));
-                
-                if (navigator.onLine && cortes.length > 0) {
-                    db.collection('data').doc('appData').set({
-                        cortes: cortes,
-                        talleres: talleres,
-                        transacciones: transacciones,
-                        lastUpdate: firebase.firestore.FieldValue.serverTimestamp()
-                    }).catch(function(err) { 
-                        console.log('Firebase error:', err); 
-                    });
-                }
-                
-                createDailyBackup();
-            }
+            createDailyBackup();
+        }
 
         function setupRealtimeSync() {
-            if (!navigator.onLine) return;
+            if (!navigator.onLine) {
+                console.log('Offline - sincronización en tiempo real no disponible');
+                return;
+            }
             
+            // Limpiar listeners anteriores si existen
+            if (unsubscribeCortes) {
+                unsubscribeCortes();
+                unsubscribeCortes = null;
+            }
+            if (unsubscribeConnectedUsers) {
+                unsubscribeConnectedUsers();
+                unsubscribeConnectedUsers = null;
+            }
+            
+            // Registrar usuario conectado
             if (currentUser) {
                 connectedUsers[currentUser.usuario] = {
                     nombre: currentUser.nombre,
@@ -1852,30 +2007,83 @@
                 db.collection('data').doc('connectedUsers').set(connectedUsers).catch(function() {});
             }
             
-            db.collection('data').doc('appData').onSnapshot(function(doc) {
-                if (!doc.exists) return;
-                var data = doc.data();
-                var cloudCortes = data.cortes || [];
-                
-                if (cloudCortes.length > 0 && cortes.length === 0) {
-                    cortes = cloudCortes;
-                    talleres = data.talleres || [];
-                    transacciones = data.transacciones || [];
-                    
-                    localStorage.setItem('cortes', JSON.stringify(cortes));
-                    localStorage.setItem('talleres', JSON.stringify(talleres));
-                    localStorage.setItem('transacciones', JSON.stringify(transacciones));
-                    
-                    renderPendientes();
-                    renderHistorial();
-                    renderTalleres();
-                }
-            }, function(err) { console.log('Sync error:', err); });
+            // Sincronización en tiempo real - escucha cambios en Firebase
+            // Usar collection group o documento específico
+            var appDataRef = db.collection('data').doc('appData');
             
-            db.collection('data').doc('connectedUsers').onSnapshot(function(doc) {
+            unsubscribeCortes = appDataRef.onSnapshot(function(doc) {
+                if (!doc.exists) return;
+                
+                // Ignorar si el cambio fue hecho por esta sesión recientemente
+                if (isLocalUpdate) {
+                    console.log('Ignorando cambio local reciente');
+                    return;
+                }
+                
+                try {
+                    var data = doc.data();
+                    var cloudCortes = data.cortes || [];
+                    var cloudTalleres = data.talleres || [];
+                    var cloudTransacciones = data.transacciones || [];
+                    var cloudLastUpdate = data.lastUpdate ? data.lastUpdate.toMillis() : 0;
+                    var localLastUpdate = localStorage.getItem('lastUpdate') ? parseInt(localStorage.getItem('lastUpdate')) : 0;
+                    
+                    // Verificar si hay cambios reales comparando
+                    var hasChanges = JSON.stringify(cortes) !== JSON.stringify(cloudCortes) ||
+                                   JSON.stringify(talleres) !== JSON.stringify(cloudTalleres) ||
+                                   JSON.stringify(transacciones) !== JSON.stringify(cloudTransacciones);
+                    
+                    // Actualizar si hay datos más recientes en la nube o hay cambios
+                    if ((cloudCortes.length > 0 && cloudLastUpdate > localLastUpdate + 1000) || (hasChanges && cloudCortes.length > 0)) {
+                        console.log('Realtime sync: actualizando desde Firebase');
+                        cortes = cloudCortes;
+                        talleres = cloudTalleres;
+                        transacciones = cloudTransacciones;
+                        
+                        localStorage.setItem('cortes', JSON.stringify(cortes));
+                        localStorage.setItem('talleres', JSON.stringify(talleres));
+                        localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                        localStorage.setItem('lastUpdate', cloudLastUpdate || Date.now());
+                        
+                        renderPendientes();
+                        renderRetirados();
+                        renderHistorial();
+                        renderTalleres();
+                        updatePendientesBadge();
+                        updateTallerSelects();
+                        showSyncIndicator('Datos sincronizados automáticamente');
+                    }
+                } catch (e) {
+                    console.error('Error en sincronización:', e);
+                }
+            }, function(err) { 
+                console.log('Sync error:', err);
+                showSyncIndicator('Error de sincronización', true);
+            });
+            
+            // Listener de usuarios conectados
+            unsubscribeConnectedUsers = db.collection('data').doc('connectedUsers').onSnapshot(function(doc) {
                 if (!doc.exists) return;
                 connectedUsers = doc.data() || {};
+                // Actualizar vista de usuarios si está en sección admin
+                if (document.getElementById('admin').classList.contains('active')) {
+                    renderUsuarios();
+                }
             }, function(err) { console.log('Users error:', err); });
+            
+            console.log('Sincronización en tiempo real configurada');
+        }
+
+        // Cleanup listeners when logging out
+        function cleanupRealtimeSync() {
+            if (unsubscribeCortes) {
+                unsubscribeCortes();
+                unsubscribeCortes = null;
+            }
+            if (unsubscribeConnectedUsers) {
+                unsubscribeConnectedUsers();
+                unsubscribeConnectedUsers = null;
+            }
         }
         
         function syncFromCloud() {
@@ -1884,9 +2092,11 @@
                 return;
             }
             
+            showSyncIndicator('⏳ Sincronizando...');
+            
             db.collection('data').doc('appData').get().then(function(doc) {
                 if (!doc.exists) {
-                    alert('No hay datos en la nube');
+                    showSyncIndicator('No hay datos en la nube');
                     return;
                 }
                 
@@ -1894,18 +2104,24 @@
                 cortes = data.cortes || [];
                 talleres = data.talleres || [];
                 transacciones = data.transacciones || [];
+                var cloudLastUpdate = data.lastUpdate ? data.lastUpdate.toMillis() : Date.now();
                 
                 localStorage.setItem('cortes', JSON.stringify(cortes));
                 localStorage.setItem('talleres', JSON.stringify(talleres));
                 localStorage.setItem('transacciones', JSON.stringify(transacciones));
+                localStorage.setItem('lastUpdate', cloudLastUpdate);
                 
                 renderPendientes();
+                renderRetirados();
                 renderHistorial();
                 renderTalleres();
-                alert('Datos sincronizados desde la nube');
+                updatePendientesBadge();
+                updateTallerSelects();
+                
+                showSyncIndicator('✓ Datos sincronizados');
             }).catch(function(err) {
                 console.log('Sync error:', err);
-                alert('Error al sincronizar: ' + err.message);
+                showSyncIndicator('✗ Error al sincronizar', true);
             });
         }
 
