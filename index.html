@@ -1029,15 +1029,52 @@
 
         function renderRetirados() {
             var container = document.getElementById('retiradosContainer');
-            var retirados = cortes.filter(function(c) { return c.estado === 'retirado'; });
+            var retiradoAll = cortes.filter(function(c) { return c.estado === 'retirado'; });
 
-            if (retirados.length === 0) {
+            var now = new Date();
+            var hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            var ontem = new Date(hoy);
+            ontem.setDate(ontem.getDate() - 1);
+
+            var retirados = {
+                today: [],
+                yesterday: [],
+                older: []
+            };
+
+            retiradoAll.forEach(function(c) {
+                var fechaRetiro = c.fechaRetiro ? new Date(c.fechaRetiro) : new Date(0);
+                var fechaRetiroDate = new Date(fechaRetiro.getFullYear(), fechaRetiro.getMonth(), fechaRetiro.getDate());
+                if (fechaRetiroDate.getTime() === hoy.getTime()) {
+                   retirados.today.push(c);
+                } else if (fechaRetiroDate.getTime() === ontem.getTime()) {
+                   retirados.yesterday.push(c);
+                } else {
+                   retirados.older.push(c);
+                }
+            });
+
+            function sortByDateDesc(arr) {
+                return arr.sort(function(a, b) {
+                    var dateA = a.fechaRetiro ? new Date(a.fechaRetiro) : new Date(0);
+                    var dateB = b.fechaRetiro ? new Date(b.fechaRetiro) : new Date(0);
+                    return dateB - dateA;
+                });
+            }
+
+            sortByDateDesc(retirados.today);
+            sortByDateDesc(retirados.yesterday);
+            sortByDateDesc(retirados.older);
+
+            var allSorted = retirados.today.concat(retirados.yesterday).concat(retirados.older);
+
+            if (allSorted.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay cortes retirados</div>';
                 return;
             }
 
             var html = '';
-            retirados.forEach(function(c) {
+            allSorted.forEach(function(c) {
                 var numCorte = c.numCorte || 1;
                 var coloresHtml = '';
                 c.colors.forEach(function(cc) {
