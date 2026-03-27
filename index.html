@@ -1086,7 +1086,7 @@
 
             var allSorted = retirados.today.concat(retirados.yesterday).concat(retirados.older);
 
-            var busqueda = document.getElementId('buscarRetirados') ? document.getElementById('buscarRetirados').value.toLowerCase() : "";
+            var busqueda = document.getElementId('buscarRetirados') ? document.getElementById('buscarRetirados').value.toLowerCase() : '';
             if (busqueda) {
                 allSorted = allSorted.filter(function(c) {
                     return c.nombre.toLowerCase().indexOf(busqueda) !== -1;
