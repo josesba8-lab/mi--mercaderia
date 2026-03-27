@@ -1049,27 +1049,94 @@
             var container = document.getElementById('retiradosContainer');
             var retiradoAll = cortes.filter(function(c) { return c.estado === 'retirado'; });
 
+            console.log('renderRetirados - total:', retiradoAll.length);
+            
             var now = new Date();
             var hoy = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             var ontem = new Date(hoy);
             ontem.setDate(ontem.getDate() - 1);
 
-            var retirados = {
-                today: [],
-                yesterday: [],
-                older: []
-            };
+            var todayArr = [];
+            var yesterdayArr = [];
+            var olderArr = [];
 
             retiradoAll.forEach(function(c) {
-                var fechaRetiro = c.fechaRetiro ? new Date(c.fechaRetiro) : new Date(0);
-                var fechaRetiroDate = new Date(fechaRetiro.getFullYear(), fechaRetiro.getMonth(), fechaRetiro.getDate());
-                if (fechaRetiroDate.getTime() === hoy.getTime()) {
-                   retirados.today.push(c);
-                } else if (fechaRetiroDate.getTime() === ontem.getTime()) {
-                   retirados.yesterday.push(c);
-                } else {
-                   retirados.older.push(c);
+                var fechaStr = c.fechaRetiro || c.date || '';
+                var fechaRetiro;
+                try {
+                    fechaRetiro = new Date(fechaStr);
+                    if (isNaN(fechaRetiro.getTime())) {
+                        fechaRetiro = new Date(0);
+                    }
+                } catch(e) {
+                    fechaRetiro = new Date(0);
                 }
+                var fechaRetiroDate = new Date(fechaRetiro.getFullYear(), fechaRetiro.getMonth(), fechaRetiro.getDate());
+                
+                if (fechaRetiroDate.getTime() === hoy.getTime()) {
+                    todayArr.push(c);
+                } else if (fechaRetiroDate.getTime() === ontem.getTime()) {
+                    yesterdayArr.push(c);
+                } else {
+                    olderArr.push(c);
+                }
+            });
+
+            function sortByDateDesc(arr) {
+                return arr.sort(function(a, b) {
+                    var dateA = new Date(a.fechaRetiro || a.date || 0);
+                    var dateB = new Date(b.fechaRetiro || b.date || 0);
+                    return dateB - dateA;
+                });
+            }
+
+            sortByDateDesc(todayArr);
+            sortByDateDesc(yesterdayArr);
+            sortByDateDesc(olderArr);
+
+            var allSorted = todayArr.concat(yesterdayArr).concat(olderArr);
+
+            var busqueda = document.getElementById('buscarRetirados') ? document.getElementById('buscarRetirados').value.toLowerCase() : '';
+            if (busqueda) {
+                allSorted = allSorted.filter(function(c) {
+                    return c.nombre.toLowerCase().indexOf(busqueda) !== -1;
+                });
+            }
+
+            console.log('renderRetirados - allSorted:', allSorted.length);
+
+            if (allSorted.length === 0) {
+                container.innerHTML = '<div class="empty-state">No hay cortesretirados</div>';
+                return;
+            }
+
+            var html = '';
+            allSorted.forEach(function(c) {
+                var numCorte = c.numCorte || 1;
+                var coloresHtml = '';
+                c.colors.forEach(function(cc) {
+                    var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : '';
+                    coloresHtml += '<span class="corte-color-tag"><span class="corte-color-dot" style="background: ' + cc.color + '"></span>' + cc.nombre + ' ' + cc.cantidad + metrosText + '</span>';
+                });
+                var coloresDetalle = c.colors.map(function(cc) { var metrosText = cc.metros > 0 ? ' (' + cc.metros + 'm)' : ''; return cc.nombre + ' ' + cc.cantidad + metrosText; }).join(' + ');
+                var subtotal = c.colors.reduce(function(sum, cc) { return sum + cc.cantidad; }, 0);
+                var statusPagado = c.pagado ? '<span style="background:#28a745;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PAGADO</span>' : '<span style="background:#dc3545;color:white;padding:2px 8px;border-radius:5px;font-size:11px;margin-left:5px">PENDIENTE</span>';
+                var infoExtra = '';
+                if (c.quienEntrega) infoExtra += '<br>Registrado por: ' + c.quienEntrega;
+                if (c.quienRetiro) infoExtra += '<br>Controló: ' + c.quienRetiro;
+                if (c.notas) infoExtra += '<br>Notas: ' + c.notas;
+
+                var btnEditarRetiro = isAdmin() ? '<button class="btn btn-small btn-primary" style="margin-top:8px" onclick="openEditRetiroModal(' + c.id + ')">Editar</button>' : '';
+                var btnEliminarRetiro = isAdmin() ? '<button class="btn btn-small btn-danger" style="margin-top:8px" onclick="eliminarCorteRetirado(' + c.id + ')">Eliminar</button>' : '';
+
+                html += '<div class="corte-item">' +
+                    '<div class="corte-header"><span class="corte-name">#' + numCorte + ' - ' + c.nombre + '</span>' + statusPagado + '</div>' +
+                    '<div class="history-details"><strong>' + coloresDetalle + '</strong><br>Subtotal: ' + subtotal + ' x ' + c.multiplicador + ' = <strong>' + c.total + ' unidades</strong><br><span class="history-date">Registrado: ' + (c.date || 'Sin fecha') + '</span><br><span class="history-date">Retirado: ' + (c.fechaRetiro || 'Sin fecha') + '</span><br>Taller: ' + c.taller + infoExtra + '<br><span class="history-date">Registrado por: ' + c.usuario + '</span></div>' +
+                    '<div class="corte-colors">' + coloresHtml + '</div>' +
+                    '<div class="corte-actions">' + btnEditarRetiro + ' ' + btnEliminarRetiro + '</div></div>';
+            });
+            container.innerHTML = html;
+        }
             });
 
             function sortByDateDesc(arr) {
