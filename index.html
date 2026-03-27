@@ -356,9 +356,10 @@
 
                     <div id="cortesRetirados" style="display: none;">
                         <h2>Cortes Retirados</h2>
-                        <div style="display:flex;gap:10px;margin-bottom:15px">
-                            <input type="text" id='buscarRetirados' placeholder="Buscar por nombre..." oninput="filtrarRetirados()" style="flex:1;padding:10px;border-radius:8px;border:2px solid #ddd">
+                        <div id="retiradosContainer">
+                            <div class="empty-state">No hay cortesretirados</div>
                         </div>
+                    </div>
                         <div id="retiradosContainer">
                             <div class="empty-state">No hay cortes retirados</div>
                         </div>
@@ -1107,13 +1108,6 @@
 
             var allSorted = retirados.today.concat(retirados.yesterday).concat(retirados.older);
 
-            var busqueda = document.getElementId('buscarRetirados') ? document.getElementById('buscarRetirados').value.toLowerCase() : '';
-            if (busqueda) {
-                allSorted = allSorted.filter(function(c) {
-                    return c.nombre.toLowerCase().indexOf(busqueda) !== -1;
-                });
-            }
-
             if (allSorted.length === 0) {
                 container.innerHTML = '<div class="empty-state">No hay cortes retirados</div>';
                 return;
@@ -1147,9 +1141,6 @@
             container.innerHTML = html;
         }
         
-        function filtrarRetirados() {
-            renderRetirados();
-        }
 
         function eliminarCorteRetirado(corteId) {
             if (!isAdmin()) {
